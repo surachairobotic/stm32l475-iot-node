@@ -4,7 +4,7 @@ mbed config -G /usr/bin/
 mbed compile -m DISCO_L475VG_IOT01A -t GCC_ARM -v
 
 mbed import mbed-os
-mbed config -G MBED_OS_DIR /home/cobot/taist/software_embedded_systems/stm32l475-iot-node/mbed-os/
+mbed config -G MBED_OS_DIR C:\Software Embeded Sysytem\mbed-os\
 
 mbed compile -m DISCO_L475VG_IOT01A -t GCC_ARM --source push-to-light-baremetal --source mbed-os --build BUILD/push-to-light-baremetal
 mbed compile -m DISCO_L475VG_IOT01A -t GCC_ARM --source push-to-light-eventqueue --source mbed-os --build BUILD/push-to-light-eventqueue
