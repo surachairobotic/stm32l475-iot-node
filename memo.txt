@@ -7,6 +7,8 @@ mbed import mbed-os
 mbed config -G MBED_OS_DIR /home/cobot/taist/software_embedded_systems/stm32l475-iot-node/mbed-os/
 
 mbed compile -m DISCO_L475VG_IOT01A -t GCC_ARM --source push-to-light-baremetal --source mbed-os --build BUILD/push-to-light-baremetal
+mbed compile -m DISCO_L475VG_IOT01A -t GCC_ARM --source push-to-light-eventqueue --source mbed-os --build BUILD/push-to-light-eventqueue
+mbed compile -m DISCO_L475VG_IOT01A -t GCC_ARM --source push-to-light-thread --source mbed-os --build BUILD/push-to-light-thread
 
 
 https://os.mbed.com/docs/mbed-os/v5.15/tools/working-with-mbed-cli.html

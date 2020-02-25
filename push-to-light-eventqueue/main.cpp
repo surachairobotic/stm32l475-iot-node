@@ -1,23 +1,28 @@
-/* mbed Microcontroller Library
- * Copyright (c) 2019 ARM Limited
- * SPDX-License-Identifier: Apache-2.0
- */
-
 #include "mbed.h"
-#include "platform/mbed_thread.h"
 
+DigitalOut led1(LED1);
+InterruptIn sw(PC_13);
+EventQueue queue(32 * EVENTS_EVENT_SIZE);
+Thread t;
 
-// Blinking rate in milliseconds
-#define BLINKING_RATE_MS                                                    100
+void rise_handler(void) {
+    printf("rise_handler in context %p\r\n", Thread::gettid());
+    // Toggle LED
+    led1 = !led1;
+}
 
+void fall_handler(void) {
+    printf("fall_handler in context %p\r\n", Thread::gettid());
+    // Toggle LED
+    led1 = !led1;
+}
 
-int main()
-{
-    // Initialise the digital pin LED1 as an output
-    DigitalOut led(LED1);
-
-    while (true) {
-        led = !led;
-        thread_sleep_for(BLINKING_RATE_MS);
-    }
+int main() {
+    // Start the event queue
+    t.start(callback(&queue, &EventQueue::dispatch_forever));
+    printf("Starting in context %p\r\n", Thread::gettid());
+    // The 'rise' handler will execute in IRQ context
+    sw.rise(rise_handler);
+    // The 'fall' handler will execute in the context of thread 't'
+    sw.fall(queue.event(fall_handler));
 }
