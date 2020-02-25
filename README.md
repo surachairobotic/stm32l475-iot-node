@@ -1,10 +1,18 @@
+<<<<<<< HEAD
 #Feb 24 assignment
+=======
+# Feb 24 assignment
+>>>>>>> a549883269f7b5fd1f3eaec2cd656715aae019a2
 This repository consists of three source code
 1. push-to-light-baremetal
 2. push-to-light-thread
 3. push-to-light-eventqueue
 
+<<<<<<< HEAD
 #How to compile the source code
+=======
+# How to compile the source code
+>>>>>>> a549883269f7b5fd1f3eaec2cd656715aae019a2
 1. Open Git bash
 2. Select your preferred folder
 ```console
@@ -27,10 +35,18 @@ This repository consists of three source code
 	$mbed compile -m DISCO_L475VG_IOT01A -t GCC_ARM
 ```
 
+<<<<<<< HEAD
 #Write the file to STM32L475
+=======
+# Write the file to STM32L475
+>>>>>>> a549883269f7b5fd1f3eaec2cd656715aae019a2
 1. Connect the board to computer via USB port.
 2. Open BUILD folder in your repository
 3. Copy file ~.bin to STM32L475 folder.
 4. Press the blue button on the board. The LED light should blink according to the code in main.cpp .
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> a549883269f7b5fd1f3eaec2cd656715aae019a2
