@@ -1,17 +1,4 @@
 {
-    "config": {
-        "wifi-ssid": {
-            "help": "WiFi SSID",
-            "value": "\"SI iphone\""
-        },
-        "wifi-password": {
-            "help": "WiFi Password",
-            "value": "\"inninn2540\""
-        },
-        "main-stack-size": {
-            "value": 8192
-        }
-    },
     "target_overrides": {
         "*": {
             "platform.stdio-convert-newlines": true,
@@ -21,8 +8,8 @@
             "mbed-trace.enable": null,
             "mbed-http.http-buffer-size": 2048,
             "nsapi.default-wifi-security": "WPA_WPA2",
-            "nsapi.default-wifi-ssid": "\"SI iphone\"",
-            "nsapi.default-wifi-password": "\"inninn2540\""
+            "nsapi.default-wifi-ssid": "\"Jack\"",
+            "nsapi.default-wifi-password": "\"nopassword\""
         },
         "DISCO_L475VG_IOT01A": {
             "ism43362.provide-default": true,
