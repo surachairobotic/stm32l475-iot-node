@@ -56,7 +56,7 @@ This repository consists of three source code
 	$ mbed add -vv https://os.mbed.com/teams/sandbox/code/mbed-http/
 	$ mbed add add https://github.com/ARMmbed/mbed-mqtt
 ```
-4. Copy main.cpp and mbed_app.json from each source folder and save in to each folder program in your computer.
+4. Copy file from each source folder and save in to each folder program in your computer.
 5. Go to the Repository
 ```console
 	$ cd [PREFERRED_FOLDER_NAME]
