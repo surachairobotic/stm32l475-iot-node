@@ -1,36 +1,20 @@
 {
     "config": {
         "wifi-ssid": {
-            "help": "WiFi SSID",
-            "value": "\"SI iphone\""
+            "help": "BOBBY",
+            "value": "\"BOBBY\""
         },
         "wifi-password": {
-            "help": "WiFi Password",
-            "value": "\"inninn2540\""
-        },
-        "main-stack-size": {
-            "value": 8192
+            "help": "00000000",
+            "value": "\"00000000\""
         }
     },
     "target_overrides": {
         "*": {
-            "platform.stdio-convert-newlines": true,
-            "platform.stdio-baud-rate": 115200,
-            "mbed-mesh-api.6lowpan-nd-channel-page": 0,
-            "mbed-mesh-api.6lowpan-nd-channel": 12,
-            "mbed-trace.enable": null,
-            "mbed-http.http-buffer-size": 2048,
-            "nsapi.default-wifi-security": "WPA_WPA2",
-            "nsapi.default-wifi-ssid": "\"SI iphone\"",
-            "nsapi.default-wifi-password": "\"inninn2540\""
+            "platform.stdio-convert-newlines": true
         },
         "DISCO_L475VG_IOT01A": {
-            "ism43362.provide-default": true,
-            "target.network-default-interface-type" : "WIFI"
-        },
-        "MBED_CONF_ISM43362_WIFI_DEBUG": {
-            "ism43362.wifi-debug": true
+            "ism43362.provide-default": true
         }
     }
 }
-

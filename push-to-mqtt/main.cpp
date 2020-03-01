@@ -1,14 +1,98 @@
-#include "mbed.h"
-#include "http_request.h"
-#include "network-helper.h"
-#include "mbed_mem_trace.h"
- 
+#include <mbed.h>
+#include "MQTTNetwork.h"
+#include "MQTTmbed.h"
+#include "MQTTClient.h"
 DigitalOut led(LED1);
 InterruptIn button(USER_BUTTON);
 Thread t;
 EventQueue queue(5 * EVENTS_EVENT_SIZE);
 Serial pc(USBTX, USBRX);
 WiFiInterface *wifi;
+
+int arrivedcount = 0;
+
+void messageArrived(MQTT::MessageData& md)
+{
+    MQTT::Message &message = md.message;
+    pc.printf("Message arrived: qos %d, retained %d, dup %d, packetid %d\r\n", message.qos, message.retained, message.dup, message.id);
+    pc.printf("Payload %.*s\r\n", message.payloadlen, (char*)message.payload);
+    ++arrivedcount;
+}
+ 
+//  int mqttcall(int argc, char* argv[],network)
+int mqttcall(NetworkInterface* network)
+{
+    float version = 0.6;
+    char* topic = "@msg/Topic";
+ 
+    pc.printf("HelloMQTT: version is %.2f\r\n", version);
+ 
+    MQTTNetwork mqttNetwork(network);
+ 
+    MQTT::Client<MQTTNetwork, Countdown> client(mqttNetwork);
+ 
+    const char* hostname = "mqtt.netpie.io";
+    int port = 1883;
+    pc.printf("Connecting to %s:%d\r\n", hostname, port);
+    // mqttNetwork.connect(hostname, port);
+    int rc = mqttNetwork.connect(hostname, port);
+ 
+    MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
+    data.MQTTVersion = 3;
+    // data.clientID.cstring = "91e73a23-264f-40df-b653-cd074a20e052";
+    // data.username.cstring = "3xHPAVnNgVdwdsh2LA6m42RFgZfevSZi";
+    data.clientID.cstring = "efe96ea5-c68f-4e84-8f7d-3c35dd3a7984";
+    data.username.cstring = "jpkaAJdSe9GDgEWviWvgWxMyRiApoRx2";
+    // client.connect(data);
+    if ((rc = client.connect(data)) != 0)
+        pc.printf("rc from MQTT connect is %d\r\n", rc);
+ 
+    if ((rc = client.subscribe(topic, MQTT::QOS2, messageArrived)) != 0)
+        pc.printf("rc from MQTT subscribe is %d\r\n", rc);
+     
+    MQTT::Message message;
+ 
+    // QoS 0
+    char buf[100];
+    sprintf(buf, "Hello World!  QoS 0 message \r\n");
+    message.qos = MQTT::QOS0;
+    message.retained = false;
+    message.dup = false;
+    message.payload = (void*)buf;
+    message.payloadlen = strlen(buf)+1;
+    rc = client.publish(topic, message);
+    while (arrivedcount < 1)
+        client.yield(100);
+ 
+    // QoS 1
+    sprintf(buf, "Hello World!  QoS 1 message \r\n");
+    message.qos = MQTT::QOS1;
+    message.payloadlen = strlen(buf)+1;
+    rc = client.publish(topic, message);
+    while (arrivedcount < 2)
+        client.yield(100);
+ 
+    // QoS 2
+    sprintf(buf, "Hello World!  QoS 2 message \r\n");
+    message.qos = MQTT::QOS2;
+    message.payloadlen = strlen(buf)+1;
+    rc = client.publish(topic, message);
+    while (arrivedcount < 3)
+        client.yield(100);
+ 
+    if ((rc = client.unsubscribe(topic)) != 0)
+        pc.printf("rc from unsubscribe was %d\r\n", rc);
+ 
+    if ((rc = client.disconnect()) != 0)
+        pc.printf("rc from disconnect was %d\r\n", rc);
+ 
+    mqttNetwork.disconnect();
+ 
+    pc.printf("Version %.2f: finish %d msgs\r\n", version, arrivedcount);
+ 
+    return 0;
+}
+
 
 
 const char *sec2str(nsapi_security_t sec)
@@ -28,16 +112,6 @@ const char *sec2str(nsapi_security_t sec)
         default:
             return "Unknown";
     }
-}
-
-void dump_response(HttpResponse* res) {
-    printf("Status: %d - %s\n", res->get_status_code(), res->get_status_message().c_str());
-
-    printf("Headers:\n");
-    for (size_t ix = 0; ix < res->get_headers_length(); ix++) {
-        printf("\t%s: %s\n", res->get_headers_fields()[ix]->c_str(), res->get_headers_values()[ix]->c_str());
-    }
-    printf("\nBody (%d bytes):\n\n%s\n", res->get_body_length(), res->get_body_as_string().c_str());
 }
 
 int scan_wifi() {
@@ -71,57 +145,9 @@ int scan_wifi() {
     return count; 
 }
 
-int http() {
-    // Connect to the network with the default networking interface
-    // if you use WiFi: see mbed_app.json for the credentials
-    NetworkInterface* network = connect_to_default_network_interface();
-    if (!network) {
-        printf("Cannot connect to the network, see serial output\n");
-        return 1;
-    }
-
-    // Do a GET request to httpbin.org
-    {
-        // By default the body is automatically parsed and stored in a buffer, this is memory heavy.
-        // To receive chunked response, pass in a callback as last parameter to the constructor.
-        HttpRequest* get_req = new HttpRequest(network, HTTP_GET, "http://www.example.com");
-
-        HttpResponse* get_res = get_req->send();
-        if (!get_res) {
-            printf("HttpRequest failed (error code %d)\n", get_req->get_error());
-            return 1;
-        }
-
-        printf("\n----- HTTP GET response -----\n");
-        dump_response(get_res);
-
-        delete get_req;
-    }
-
-    // POST request to httpbin.org
-    {
-        HttpRequest* post_req = new HttpRequest(network, HTTP_POST, "http://www.example.com");
-        post_req->set_header("Content-Type", "application/json");
-
-        const char body[] = "{\"hello\":\"world\"}";
-
-        HttpResponse* post_res = post_req->send(body, strlen(body));
-        if (!post_res) {
-            printf("HttpRequest failed (error code %d)\n", post_req->get_error());
-            return 1;
-        }
-
-        printf("\n----- HTTP POST response -----\n");
-        dump_response(post_res);
-
-        delete post_req;
-    }
-
-    wait(osWaitForever);
-}
 
 void pressed_handler() {
-/*    int count;
+    int count;
 
     count = scan_wifi();
     if (count == 0) {
@@ -138,35 +164,18 @@ void pressed_handler() {
 
     pc.printf("Success\n\n");
     pc.printf("MAC: %s\n", wifi->get_mac_address());
-    SocketAddress a;
-    wifi->get_ip_address(&a);
-    pc.printf("IP: %s\n", a.get_ip_address());
-    wifi->get_netmask(&a);
-    pc.printf("Netmask: %s\n", a.get_ip_address());
-    wifi->get_gateway(&a);
-    pc.printf("Gateway: %s\n", a.get_ip_address());
+    
+    pc.printf("IP: %s\n", wifi->get_ip_address());
+    pc.printf("Netmask: %s\n", wifi->get_netmask());
+    pc.printf("Gateway: %s\n", wifi->get_gateway());
     pc.printf("RSSI: %d\n\n", wifi->get_rssi());
-
- 
-	const char body[] = "{\"hello\":\"world\"}";
- 
-	HttpRequest* request = new HttpRequest(wifi, HTTP_POST, "http:www.example.com");
-	request->set_header("Content-Type", "application/json");
-	HttpResponse* response = request->send(body, strlen(body));
-	// if response is NULL, check response->get_error()
- 
-	printf("status is %d - %s\n", response->get_status_code(), response->get_status_message());
-	printf("body is:\n%s\n", response->get_body_as_string().c_str());
- 
-	delete request; // also clears out the response
-
-*/
-
-	http();
-	
+    mqttcall(wifi);
     wifi->disconnect();
     pc.printf("\nDone\n");    
 }
+
+
+
 
 
 int main() {
