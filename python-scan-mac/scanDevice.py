@@ -5,18 +5,18 @@ from bleak import discover
 async def scan(mac_addrs):
     while True:
         #print('Start scanning')
-        #tstart = loop.time()
+        tstart = loop.time()
         devices = await discover()
-        #print('Found %d devices'%(len(devices)))
-        #for i in range(len(devices)):
-        #    print("[%d] : %s" % (i, devices[i]))
+        print('Found %d devices'%(len(devices)))
+        for i in range(len(devices)):
+            print("[%d] : %s" % (i, devices[i]))
         for dev in devices:
             dev_mac = str(dev).split(': ')[0]
             if dev_mac in mac_addrs:
                 #print(dev_mac, 'detected at', dev.rssi, 'dBm')
                 print(dev.rssi)
-        #telapsed = loop.time() - tstart
-        #print('Elapsed time: %.1f'%(telapsed))
+        telapsed = loop.time() - tstart
+        print('Elapsed time: %.1f'%(telapsed))
         #await asyncio.sleep(6 - telapsed)
 
 if __name__ == '__main__':
