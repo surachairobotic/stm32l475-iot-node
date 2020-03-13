@@ -1,0 +1,3 @@
+
+toa_iot:NOT,bank_iot:NOT,inn_iot:NOT
+toa_iot:-58,bank_iot:-56,inn_iot:-58
