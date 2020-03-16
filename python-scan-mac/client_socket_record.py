@@ -8,10 +8,11 @@ from datetime import datetime
 
 import sys
 
-HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
+HOST = '172.20.10.3'  # Standard loopback interface address (localhost)
 PORT = 3333        # Port to listen on (non-privileged ports are > 1023)
 NAME = 'xxx'
-mac_addrs = ("D6:07:04:2B:F7:B1") # surachai
+#mac_addrs = ("D6:07:04:2B:F7:B1") # surachai iot
+mac_addrs = ("2C:FD:A1:47:36:67") # surachai iot
 b_scan = False
 
 
@@ -29,11 +30,14 @@ class ClientTCP:
 client = ClientTCP()
 
 def main():
-  global client, mac_addrs, NAME
+  global client, mac_addrs, NAME, PORT
 
   l_name = ['toa_iot', 'bank_iot', 'inn_iot']
   NAME = l_name[int(str(sys.argv[1]))]
   print(NAME)
+
+  HOST = str(sys.argv[2])
+  PORT = int(str(sys.argv[3]))
 
   client.connect_server(HOST, PORT)
 
