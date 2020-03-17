@@ -29,11 +29,14 @@ def main():
       break
     j=0
     while j<_iter:
-      for i in range(len(people)):
-        people[i].conn.sendall(bytes('save',"utf-8"))
+      #for i in range(len(people)):
+      people[0].conn.sendall(bytes('save',"utf-8"))
       incoming_txt = ["", "", ""]
-      for i in range(len(people)):
-        incoming_txt[i] = people[i].conn.recv(1024).decode('utf-8')
+      #for i in range(len(people)):
+      tmp_txt = people[0].conn.recv(1024)
+      print(tmp_txt, " : type-> ", type(tmp_txt))
+      incoming_txt[0] = tmp_txt.decode('utf-8')
+      #incoming_txt[0] = people[0].conn.recv(1024).decode('utf-8')
       print(incoming_txt)
       b_complete = True
       for i in range(len(incoming_txt)):
@@ -47,9 +50,9 @@ def main():
         f.close()
         j=j+1
 
-  for i in range(len(people)):
-    print('send q : ', i)
-    people[i].conn.sendall(bytes('q',"utf-8"))
+  #for i in range(len(people)):
+  print('send q : ', i)
+  people[0].conn.sendall(bytes('q',"utf-8"))
 
   f = open(fname, 'a')
   f.writelines('end...')
@@ -64,11 +67,11 @@ class ServerTCP:
     
   def start_server(self):
     self.sock.bind((self.host, self.port))
-    self.sock.listen(5)
+    self.sock.listen(10)
     id_list = ['toa_iot','bank_iot','inn_iot']
     people = [rssiPeople('toa_iot'), rssiPeople('bank_iot'), rssiPeople('inn_iot')]
     i=0
-    while i!=3:
+    while i!=1:
       print("waiting for a client")
       conn, addr = self.sock.accept()
       print("accept")
@@ -78,7 +81,14 @@ class ServerTCP:
       txt = txt.decode('utf-8')
       print(txt)
       for k in range(len(people)):
-        if people[k].name == txt:
+        #print(people[k].name, " : ", type(people[k].name), " : len= ", len(people[k].name))
+        #print(txt, " : ", type(txt), " : len= ", len(txt))
+        #print(people[k].name, " : ", txt, " : find=", people[k].name.find(txt))
+        #for t in people[k].name:
+        #  print(t, " : ", int(t))
+        #for t in txt:
+        #  print(t, " : ", int(t))
+        if people[k].name.find(txt) != -1:
           print("%s : (%s, %s)" % (people[k].name, conn, addr))
           print(type(conn))
           print(type(addr))

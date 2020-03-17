@@ -1,0 +1,37 @@
+{
+    "target_overrides": {
+        "*": {
+            "platform.stdio-convert-newlines": true,
+            "platform.stdio-baud-rate": 115200,
+            "nsapi.default-wifi-security": "WPA_WPA2",
+            "nsapi.default-wifi-ssid": "\"Jack\"",
+            "nsapi.default-wifi-password": "\"nopassword\""
+        },
+        "DISCO_L475VG_IOT01A": {
+            "ism43362.provide-default": true,
+            "target.network-default-interface-type" : "WIFI"
+        },
+        "MBED_CONF_ISM43362_WIFI_DEBUG": {
+            "ism43362.wifi-debug": true
+        },
+        "K64F": {
+            "target.features_add": ["BLE"],
+            "target.extra_labels_add": ["CORDIO", "CORDIO_BLUENRG"]
+        },
+        "NUCLEO_F401RE": {
+            "target.features_add": ["BLE"],
+            "target.extra_labels_add": ["CORDIO", "CORDIO_BLUENRG"]
+        },
+        "DISCO_L475VG_IOT01A": {
+            "target.features_add": ["BLE"],
+            "target.extra_labels_add": ["CORDIO", "CORDIO_BLUENRG"]
+        },
+        "NRF52840_DK": {
+            "target.features_add": ["BLE"]
+        },
+        "NRF52_DK": {
+            "target.features_add": ["BLE"]
+        }
+    }
+}
+
