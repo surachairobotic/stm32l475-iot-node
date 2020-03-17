@@ -42,8 +42,21 @@ public:
         _blink_event(0),
         b_scan(true),
         b_finish(true),
-        PORT(4444),
-        b_ble_init(false) {
+        b_ble_init(false),
+        b_found_dev(false) {
+  /*
+  char txt_id[4];// = {'#', 'i', 'd', '$', '\0'};
+  char txt_save[4];// = {'s', 'a', 'v', 'e', '\0'};
+  char txt_name[7];// = {'t', 'o', 'a', '_', 'i', 'o', 't', '\0'};
+  char DEVICE_NAME[10];// = {'A', 'S', 'U', 'S', '_', 'X', '0', '0', 'H', 'D', '\0'};
+  */
+
+        sprintf(txt_id, "#id$");
+        sprintf(txt_save, "save");
+        sprintf(DEVICE_NAME, "ASUS_X00HD");
+        //sprintf(txt_name, "toa_iot");
+        //sprintf(txt_name, "bnk_iot");
+        sprintf(txt_name, "inn_iot");
     }
 
     ~GapScanner() {
@@ -132,6 +145,7 @@ public:
 
           printf("Scanning started (interval: %dms, window: %dms, timeout: %dms).\r\n",
                  scan_params.interval.valueInMs(), scan_params.window.valueInMs(), scan_params.duration.valueInMs());        
+          _scan_count=0;
         }
     }
     
@@ -176,53 +190,57 @@ private:
     int init_socket() {
       printf("init_socket : start\r\n");
       net = NetworkInterface::get_default_instance();
+      do {
+        if (!net) {
+            printf("Error! No network inteface found.\n");
+            return 0;
+        }
 
-      if (!net) {
-          printf("Error! No network inteface found.\n");
-          return 0;
-      }
+        result = net->connect();
+        if (result != 0) {
+            printf("Error! net->connect() returned: %d\n", result);
+            return result;
+        }
 
-      result = net->connect();
-      if (result != 0) {
-          printf("Error! net->connect() returned: %d\n", result);
-          return result;
-      }
+        // Show the network address
+        net->get_ip_address(&a);
+        //printf("IP address: %s\n", a.get_ip_address() ? a.get_ip_address() : "None");
+        net->get_netmask(&a);
+        //printf("Netmask: %s\n", a.get_ip_address() ? a.get_ip_address() : "None");
+        net->get_gateway(&a);
+        //printf("Gateway: %s\n", a.get_ip_address() ? a.get_ip_address() : "None");
 
-      // Show the network address
-      net->get_ip_address(&a);
-      printf("IP address: %s\n", a.get_ip_address() ? a.get_ip_address() : "None");
-      net->get_netmask(&a);
-      printf("Netmask: %s\n", a.get_ip_address() ? a.get_ip_address() : "None");
-      net->get_gateway(&a);
-      printf("Gateway: %s\n", a.get_ip_address() ? a.get_ip_address() : "None");
+        // Send a simple http request
+        char hostname[] = "192.168.43.66";
+        char sbuffer[] = "toa_iot";
+        nsapi_size_t size = strlen(sbuffer);
 
-      // Send a simple http request
-      char hostname[] = "192.168.43.66";
-      char sbuffer[] = "toa_iot";
-      nsapi_size_t size = strlen(sbuffer);
+        result = socket.open(net);
+        if (result != 0) {
+            printf("Error! socket.open() returned: %d\n", result);
+            //goto DISCONNECT;
+        }
 
-      result = socket.open(net);
-      if (result != 0) {
-          printf("Error! socket.open() returned: %d\n", result);
-          //goto DISCONNECT;
-      }
-
-      // Get the host address
-      printf("\nResolve hostname %s\n", hostname);
-      result = net->gethostbyname(hostname, &a);
-      if (result != 0) {
-          printf("Error! gethostbyname(%s) returned: %d\n", hostname, result);
-          net->disconnect();
-          exit(-1);
-      }
-      printf("%s kkkkkkkkkkkkk is %s\n", hostname, (a.get_ip_address() ? a.get_ip_address() : "None") );
-      a.set_port(PORT);
-      result = socket.connect(a);
-      if (result != 0) {
-          printf("Error! socket.connect() returned: %d\n", result);
-          net->disconnect();
-          exit(-2);
-      }
+        // Get the host address
+        printf("\nResolve hostname %s\n", hostname);
+        result = net->gethostbyname(hostname, &a);
+        if (result != 0) {
+            printf("Error! gethostbyname(%s) returned: %d\n", hostname, result);
+            net->disconnect();
+            exit(-1);
+        }
+        //printf("%s kkkkkkkkkkkkk is %s\n", hostname, (a.get_ip_address() ? a.get_ip_address() : "None") );
+  
+        a.set_port(PORT[indx_port]);
+        indx_port = (indx_port+1)%3;
+        result = socket.connect(a);
+        printf("PORT[%d] : %d\n", indx_port, PORT[indx_port]);
+        if (result != 0) {
+            printf("Error! socket.connect() returned: %d\n", result);
+            net->disconnect();
+            //exit(-2);
+        }
+      } while( result != 0 );
       printf("init_socket : done\r\n");
     }
 
@@ -279,19 +297,47 @@ private:
       return true;
     }
 
+    bool my_strcmp2(const unsigned char *p1, const char *p2, int _size) {
+      for(int i=0; i<_size; i++) {
+        if( *(p1+i) != *(p2+i) )
+          return false;
+      }
+      return true;
+    }
+
 private:
     /* Gap::EventHandler */
 
     /** Look at scan payload to find a peer device and connect to it */
     virtual void onAdvertisingReport(const ble::AdvertisingReportEvent &event) {
         /* keep track of scan events for performance reporting */
-        _scan_count++;
+        if( _scan_count > 0 ) return;
 
         const uint8_t* addr = event.getPeerAddress().data();
 
-        printf("Found a device at %d, mac_address : %02X:%02X:%02X:%02X:%02X:%02X\n", event.getRssi(), addr[5], addr[4], addr[3], addr[2], addr[1], addr[0]);
+        //printf("Found a device at %d, mac_address : %02X:%02X:%02X:%02X:%02X:%02X\n", event.getRssi(), addr[5], addr[4], addr[3], addr[2], addr[1], addr[0]);
         
+        b_found_dev = false;
+        ble::AdvertisingDataParser adv_data(event.getPayload());
+        while (adv_data.hasNext()) {
+          ble::AdvertisingDataParser::element_t field = adv_data.next();
 
+          if ( field.type == ble::adv_data_type_t::COMPLETE_LOCAL_NAME ) {
+            printf("[%d]%s, [%d]%s, %s\n", field.value.size(), field.value.data(), strlen(DEVICE_NAME), DEVICE_NAME, my_strcmp2(field.value.data(), DEVICE_NAME, strlen(DEVICE_NAME)) ? "true" : "false");
+            if( my_strcmp2(field.value.data(), DEVICE_NAME, strlen(DEVICE_NAME)) ) {
+               
+              printf("[%d]%s, [%d]%s", field.value.size(), field.value.data(), strlen(DEVICE_NAME), DEVICE_NAME);   
+              
+              char buff[8];
+              int n = sprintf(buff, "%d", event.getRssi());
+              socket.send(buff, n);
+              b_found_dev = true;
+              _scan_count++;
+            }
+          }
+        }
+
+        /*
         if( (addr[0] == 252 && addr[5] == 117) ) {
           printf("%02X:%02X:%02X:%02X:%02X:%02X : ",
              addr[5], addr[4], addr[3], addr[2], addr[1], addr[0]);
@@ -302,14 +348,19 @@ private:
              sprintf(buff, "%d", event.getRssi());
              //socket.send(buff, sizeof(buff));
         }
+        */
     }
 
     virtual void onScanTimeout(const ble::ScanTimeoutEvent&) {
         printf("Stopped scanning early due to timeout parameter\r\n");
-        char buff[64];
-        sprintf(buff, "NOT");
-        socket.send(buff, 3);
-        _event_queue.call_in(1000, this, &GapScanner::socket_thread);
+        if( !b_found_dev ) {
+          char buff[3];
+          sprintf(buff, "NOT");
+          socket.send(buff, 3);
+          b_found_dev = false;
+        }
+        //printf("_scan_count : %d", _scan_count);
+        _event_queue.call_in(500, this, &GapScanner::socket_thread);
     }    
 
 private:
@@ -335,10 +386,10 @@ private:
     SocketAddress a;
     // Open a socket on the network interface, and create a TCP connection to ifconfig.io
     TCPSocket socket;
-    
+        
 public:
-  bool b_scan, b_finish, b_ble_init;
-  int PORT;
+  bool b_scan, b_finish, b_ble_init, b_found_dev;
+  int PORT[3] = {1111, 2222, 3333}, indx_port=0;
 
   int remaining;
   int rcount;
@@ -347,19 +398,16 @@ public:
   nsapi_size_or_error_t result;
 
   char *p_id, *p_save;
-  char txt_id[4] = {'#', 'i', 'd', '$'};
-  char txt_save[4] = {'s', 'a', 'v', 'e'};
-  char txt_name[7] = {'t', 'o', 'a', '_', 'i', 'o', 't'};
-
+  char txt_id[4];// = {'#', 'i', 'd', '$', '\0'};
+  char txt_save[4];// = {'s', 'a', 'v', 'e', '\0'};
+  char txt_name[7];// = {'t', 'o', 'a', '_', 'i', 'o', 't', '\0'};
+  char DEVICE_NAME[10];// = {'A', 'S', 'U', 'S', '_', 'X', '0', '0', 'H', 'D', '\0'};
 };
 
 /** Schedule processing of events from the BLE middleware in the event queue. */
 void schedule_ble_events(BLE::OnEventsToProcessCallbackContext *context) {
     event_queue.call(Callback<void()>(&context->ble, &BLE::processEvents));
 }
-
-bool my_strcmp(const char *p1, const char *p2, int _size);
-void socket_thread();
 
 // Socket demo
 int main() {

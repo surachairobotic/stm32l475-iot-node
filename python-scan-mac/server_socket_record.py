@@ -13,11 +13,11 @@ def main():
 
   server = ServerTCP(HOST, PORT)
   people = server.start_server()
-  
+    
   f = open(fname, 'a+')
-  f.writelines('start...')
+  f.writelines('start...\r\n')
   f.close()
-  
+
   key = 'x'
   while True:
     key = input('Enter your input: ')
@@ -29,13 +29,13 @@ def main():
       break
     j=0
     while j<_iter:
-      #for i in range(len(people)):
-      people[0].conn.sendall(bytes('save',"utf-8"))
+      for i in range(len(people)):
+        people[i].conn.sendall(bytes('save',"utf-8"))
       incoming_txt = ["", "", ""]
-      #for i in range(len(people)):
-      tmp_txt = people[0].conn.recv(1024)
-      print(tmp_txt, " : type-> ", type(tmp_txt))
-      incoming_txt[0] = tmp_txt.decode('utf-8')
+      for i in range(len(people)):
+        incoming_txt[i] = people[i].conn.recv(1024).decode('utf-8')
+      #incoming_txt[i] = tmp_txt.decode('utf-8')
+      #print(tmp_txt, " : type-> ", type(tmp_txt))
       #incoming_txt[0] = people[0].conn.recv(1024).decode('utf-8')
       print(incoming_txt)
       b_complete = True
@@ -50,12 +50,12 @@ def main():
         f.close()
         j=j+1
 
-  #for i in range(len(people)):
-  print('send q : ', i)
-  people[0].conn.sendall(bytes('q',"utf-8"))
+  for i in range(len(people)):
+    print('send q : ', i)
+    people[i].conn.sendall(bytes('q',"utf-8"))
 
   f = open(fname, 'a')
-  f.writelines('end...')
+  f.writelines('end...\r\n')
   f.close()
 
 
@@ -68,10 +68,10 @@ class ServerTCP:
   def start_server(self):
     self.sock.bind((self.host, self.port))
     self.sock.listen(10)
-    id_list = ['toa_iot','bank_iot','inn_iot']
-    people = [rssiPeople('toa_iot'), rssiPeople('bank_iot'), rssiPeople('inn_iot')]
+    id_list = ['toa_iot','bnk_iot','inn_iot']
+    people = [rssiPeople(id_list[0]), rssiPeople(id_list[1]), rssiPeople(id_list[2])]
     i=0
-    while i!=1:
+    while i!=3:
       print("waiting for a client")
       conn, addr = self.sock.accept()
       print("accept")
