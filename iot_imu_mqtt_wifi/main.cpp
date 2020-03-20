@@ -18,6 +18,7 @@ const char NETPIE_SECRET[] = "e.bf2$(tjjMNja@$HKXr+#imN3&+TxA3";
 const char MQTT_TOPIC[] = "@msg/taist2020_inn/imu/1";
 
 int device_id = 1;
+unsigned long seq = 1;
 
 // void pressed_handler() {
 //     static int count = 0;
@@ -133,7 +134,8 @@ int main() {
         ThisThread::sleep_for(50);
         BSP_ACCELERO_AccGetXYZ(pDataXYZ);
         
-        printf("DEVICE[%d],GYRO[%f, %f, %f], ACC[%d, %d, %d]\r\n", device_id, pGyroDataXYZ[0], pGyroDataXYZ[1], pGyroDataXYZ[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]);
+        // printf("DEVICE[%d],GYRO[%f, %f, %f], ACC[%d, %d, %d]\r\n", device_id, pGyroDataXYZ[0], pGyroDataXYZ[1], pGyroDataXYZ[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]);
+        printf("%lu,%d,%f,%f,%f,%d,%d,%d\r\n", seq, device_id, pGyroDataXYZ[0], pGyroDataXYZ[1], pGyroDataXYZ[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]);
 
 
         int ret;
@@ -142,7 +144,8 @@ int main() {
         // QoS 0
         char buf[100];
         // sprintf(buf, "{\"count\":%d}", ++count);
-        sprintf(buf, "DEVICE[%d],GYRO[%f, %f, %f], ACC[%d, %d, %d]\r\n", device_id, pGyroDataXYZ[0], pGyroDataXYZ[1], pGyroDataXYZ[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]);
+        // sprintf(buf, "DEVICE[%d],GYRO[%f, %f, %f], ACC[%d, %d, %d]\r\n", device_id, pGyroDataXYZ[0], pGyroDataXYZ[1], pGyroDataXYZ[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]);
+        sprintf(buf, "%lu,%d,%f,%f,%f,%d,%d,%d\r\n", seq, device_id, pGyroDataXYZ[0], pGyroDataXYZ[1], pGyroDataXYZ[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]);
         message.qos = MQTT::QOS0;
         message.retained = false;
         message.dup = false;
@@ -154,6 +157,8 @@ int main() {
             printf("rc from publish was %d\r\n", ret);
         //     return;
         // } 
+
+        seq++;
 
         led = !led;
         ThisThread::sleep_for(500);
