@@ -1,84 +1,67 @@
 #include <mbed.h>
 #include <MQTTClientMbedOs.h>
+#include <vector>
+#include <string>
 
 #include "stm32l475e_iot01_gyro.h"
 #include "stm32l475e_iot01_accelero.h"
 
-DigitalOut led(LED1);
-InterruptIn button(USER_BUTTON);
-WiFiInterface *wifi;
-TCPSocket* socket;
-MQTTClient* mqttClient;
-Thread t;
-EventQueue queue(5 * EVENTS_EVENT_SIZE);
+struct Names {
+  enum type { toa, bank, inn, o, por, menghorng, michael, wari, aoff, test};
+};
 
-const char CLIENT_ID[] = "22b356db-9099-4922-8e10-60bae9346d47";
-const char NETPIE_TOKEN[] = "frDwbf2zZHZtj9Pq9KkiQek1w841zD8X"; 
-const char NETPIE_SECRET[] = "e.bf2$(tjjMNja@$HKXr+#imN3&+TxA3";
-const char MQTT_TOPIC[] = "@msg/taist2020_inn/imu/1";
+int8_t name = Names::toa;
 
-int device_id = 1;
-unsigned long seq = 1;
+int main() {
 
-// void pressed_handler() {
-//     static int count = 0;
-//     int ret;
-//     MQTT::Message message;
- 
-//     // QoS 0
-//     char buf[100];
-//     sprintf(buf, "{\"count\":%d}", ++count);
-//     message.qos = MQTT::QOS0;
-//     message.retained = false;
-//     message.dup = false;
-//     message.payload = (void*)buf;
-//     message.payloadlen = strlen(buf)+1;
-//     printf("Sending MQTT message\n");
-//     ret = mqttClient->publish(MQTT_TOPIC, message);
-//     if (ret != 0) {
-//         printf("rc from publish was %d\r\n", ret);
-//         return;
-//     }    
-// }
+    DigitalOut led(LED1), led2(LED2);
+    WiFiInterface *wifi;
+    TCPSocket* socket;
+    MQTTClient* mqttClient;
 
-// void imu_read_mqtt() {
-//     // static int count = 0;
+    std::vector<std::string> CLIENT_ID = {  "72ebe8dc-a5db-4e78-9c51-7c94c0f47e2d",
+                                            "4c17795a-e0da-4573-8902-694ec60085a0",
+                                            "028f671c-9d71-4dd9-b936-58b12752f366",
+                                            "9471259d-d918-4fab-a56d-e3fdf5477bcd",
+                                            "d8ade097-71ee-4881-a557-8556b54d2ba1",
+                                            "501e7184-6bfd-4f37-81ab-bca74039b0c9",
+                                            "3847fd5e-1641-4b13-ba8e-4b647b598c13",
+                                            "8958661e-e9e1-4e52-9570-4a9729a3adef",
+                                            "4665fab9-4827-40de-a1a6-36e538463bc4",
+                                            "d3e15b73-a2dc-4940-b7a1-568a235b62e6" };
 
-//     BSP_GYRO_GetXYZ(pGyroDataXYZ);
-//     ThisThread::sleep_for(50);
-//     BSP_ACCELERO_AccGetXYZ(pDataXYZ);
-    
-//     printf("GYRO[%f, %f, %f], ACC[%d, %d, %d]\r\n", pGyroDataXYZ[0], pGyroDataXYZ[1], pGyroDataXYZ[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]);
+    std::vector<std::string> NETPIE_TOKEN = { "JUn91WGTt7JN9f2pS6mkxXriyJusR2eL",
+                                              "xuXYkC71Ndv7XosKE8DLL5PbHaRAFwLn",
+                                              "TTXbbKgY1PFwdhYCvLbtYyGM3X6wfxDY",
+                                              "Q3CEkL7L1Rua3eKtCSEqUhMk9z4c5v3e",
+                                              "iBukVabEyN6o5kzcrcrX8Fc7caRjcWB3",
+                                              "axksa5eghhCQYp9EADGtr7edpL2Ev3G1",
+                                              "Bh6gKiQ7vr8Cbxp5KVZ3VVGoSL95pXyB",
+                                              "myZjvyCNdfpa41dvTX8fSk9niQeKZbVz",
+                                              "CXhbMLgUwHFZWKdt77AHEVAgio42f3k7",
+                                              "BJpbTPMwu8JFtrtogueNuhc2iDuKmN5U" };
 
+    std::vector<std::string> MQTT_TOPIC = { "@msg/sensor_data/toa",
+                                            "@msg/sensor_data/bank",
+                                            "@msg/sensor_data/inn",
+                                            "@msg/sensor_data/o",
+                                            "@msg/sensor_data/por",
+                                            "@msg/sensor_data/menghorng",
+                                            "@msg/sensor_data/michael",
+                                            "@msg/sensor_data/wari",
+                                            "@msg/sensor_data/aoff",
+                                            "@msg/sensor_data/toa" };
 
-//     int ret;
-//     MQTT::Message message;
- 
-//     // QoS 0
-//     char buf[100];
-//     // sprintf(buf, "{\"count\":%d}", ++count);
-//     sprintf(buf, "GYRO[%f, %f, %f], ACC[%d, %d, %d]\r\n", pGyroDataXYZ[0], pGyroDataXYZ[1], pGyroDataXYZ[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]);
-//     message.qos = MQTT::QOS0;
-//     message.retained = false;
-//     message.dup = false;
-//     message.payload = (void*)buf;
-//     message.payloadlen = strlen(buf)+1;
-//     printf("Sending MQTT message\n");
-//     ret = mqttClient->publish(MQTT_TOPIC, message);
-//     if (ret != 0) {
-//         printf("rc from publish was %d\r\n", ret);
-//         return;
-//     }    
-// }
+    int8_t device_id = name;
+    unsigned long seq = 1;
 
-int main() { 
     // WiFi connection
     wifi = WiFiInterface::get_default_instance();
     if (!wifi) {
         printf("ERROR: No WiFiInterface found.\n");
         return -1;
     }
-    int ret = wifi->connect(MBED_CONF_APP_WIFI_SSID, MBED_CONF_APP_WIFI_PASSWORD, NSAPI_SECURITY_WPA_WPA2);
+    int16_t ret = wifi->connect(MBED_CONF_APP_WIFI_SSID, MBED_CONF_APP_WIFI_PASSWORD, NSAPI_SECURITY_WPA_WPA2);
     if (ret != 0) {
         printf("\nConnection error: %d\n", ret);
         return -1;
@@ -99,9 +82,8 @@ int main() {
     // MQTT connection
     mqttClient = new MQTTClient(socket); 
     MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
-    //data.MQTTVersion = 3;
-    data.clientID.cstring = (char*)CLIENT_ID;
-    data.username.cstring = (char*)NETPIE_TOKEN;
+    data.clientID.cstring = (char*)CLIENT_ID[name].c_str();
+    data.username.cstring = (char*)NETPIE_TOKEN[name].c_str();
     //data.password.cstring = (char*)NETPIE_SECRET;
     ret = mqttClient->connect(data);
     if (ret != 0) {
@@ -109,59 +91,53 @@ int main() {
         return -1;
     }
  
-    t.start(callback(&queue, &EventQueue::dispatch_forever));
-    // button.fall(queue.event(pressed_handler));
-
-    printf("Starting\n");
-
     // Start Read sensor
     float sensor_value = 0;
     int16_t pDataXYZ[3] = {0};
     float pGyroDataXYZ[3] = {0};
-
+	
     printf("Sensor init : start\n");
     BSP_GYRO_Init();
     BSP_GYRO_LowPower(0);
     BSP_ACCELERO_Init();
     BSP_ACCELERO_LowPower(0);
     printf("Sensor init : complete\n");
+    
+    printf("MQTT init : start\n");
+    MQTT::Message message;
+    char buf[100];
+    message.qos = MQTT::QOS0;
+    message.retained = false;
+    message.dup = false;
+    printf("MQTT init : complete\n");
 
+    Timer t;
+    t.start();
+    float l_time[9], previous_t=0.0;
+    int32_t rpy[3] = {0};
+    t.reset();
+    previous_t=t.read();
     while(1) {
-
-        // imu_read_mqtt()
-
         BSP_GYRO_GetXYZ(pGyroDataXYZ);
-        ThisThread::sleep_for(50);
+        for(int i=0; i<3; i++)
+          rpy[i] = pGyroDataXYZ[i];
         BSP_ACCELERO_AccGetXYZ(pDataXYZ);
         
-        // printf("DEVICE[%d],GYRO[%f, %f, %f], ACC[%d, %d, %d]\r\n", device_id, pGyroDataXYZ[0], pGyroDataXYZ[1], pGyroDataXYZ[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]);
-        printf("%lu,%d,%f,%f,%f,%d,%d,%d\r\n", seq, device_id, pGyroDataXYZ[0], pGyroDataXYZ[1], pGyroDataXYZ[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]);
-
-
-        int ret;
-        MQTT::Message message;
-    
-        // QoS 0
-        char buf[100];
-        // sprintf(buf, "{\"count\":%d}", ++count);
-        // sprintf(buf, "DEVICE[%d],GYRO[%f, %f, %f], ACC[%d, %d, %d]\r\n", device_id, pGyroDataXYZ[0], pGyroDataXYZ[1], pGyroDataXYZ[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]);
-        sprintf(buf, "%lu,%d,%f,%f,%f,%d,%d,%d\r\n", seq, device_id, pGyroDataXYZ[0], pGyroDataXYZ[1], pGyroDataXYZ[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]);
-        message.qos = MQTT::QOS0;
-        message.retained = false;
-        message.dup = false;
+        sprintf(buf, "%lu,%d,%d,%d,%d,%d,%d,%d\r\n", seq, device_id, rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]);
         message.payload = (void*)buf;
         message.payloadlen = strlen(buf)+1;
-        printf("Sending MQTT message\r\n");
-        ret = mqttClient->publish(MQTT_TOPIC, message);
-        if (ret != 0) //{
-            printf("rc from publish was %d\r\n", ret);
-        //     return;
-        // } 
-
-        seq++;
-
+        if( t.read()-previous_t > 0.5 ) {
+          ret = mqttClient->publish(MQTT_TOPIC[name].c_str(), message);
+          if (ret != 0)
+              printf("rc from publish was %d\r\n", ret);
+          seq=seq+1;
+          led2=1;
+          previous_t = t.read();
+        }
+        else if( t.read()-previous_t > 0.025 )
+          led2=0;
         led = !led;
-        ThisThread::sleep_for(500);
     }
+    t.stop();
 }
 
