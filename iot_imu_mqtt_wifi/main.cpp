@@ -6,11 +6,24 @@
 #include "stm32l475e_iot01_gyro.h"
 #include "stm32l475e_iot01_accelero.h"
 
+DigitalOut led2(LED4); //blue
+DigitalOut led3(LED3); //yellow
+InterruptIn button(USER_BUTTON);
+EventQueue queue(5 * EVENTS_EVENT_SIZE);
+Thread t;
+int status = 1;
+
+
 struct Names {
   enum type { toa, bank, inn, o, por, menghorng, michael, wari, aoff, test};
 };
 
-int8_t name = Names::toa;
+int8_t name = Names::test;
+
+void pressed_handler();
+void moving();
+void nonmoving();
+
 
 int main() {
 
@@ -92,7 +105,6 @@ int main() {
     }
  
     // Start Read sensor
-    float sensor_value = 0;
     int16_t pDataXYZ[3] = {0};
     float pGyroDataXYZ[3] = {0};
 	
@@ -106,15 +118,16 @@ int main() {
     printf("MQTT init : start\n");
     MQTT::Message message;
     char buf[100];
-    message.qos = MQTT::QOS0;
+    message.qos = MQTT::QOS2;
     message.retained = false;
     message.dup = false;
     printf("MQTT init : complete\n");
 
     Timer t;
     t.start();
-    float l_time[9], previous_t=0.0;
+    float previous_t=0.0;
     int32_t rpy[3] = {0};
+    button.fall(queue.event(pressed_handler));
     t.reset();
     previous_t=t.read();
     while(1) {
@@ -123,7 +136,7 @@ int main() {
           rpy[i] = pGyroDataXYZ[i];
         BSP_ACCELERO_AccGetXYZ(pDataXYZ);
         
-        sprintf(buf, "%lu,%d,%d,%d,%d,%d,%d,%d\r\n", seq, device_id, rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]);
+        sprintf(buf, "%lu,%d,%lu,%lu,%lu,%d,%d,%d,%d\r\n", seq, device_id, rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
         message.payload = (void*)buf;
         message.payloadlen = strlen(buf)+1;
         if( t.read()-previous_t > 0.5 ) {
@@ -139,5 +152,29 @@ int main() {
         led = !led;
     }
     t.stop();
+}
+
+void moving() {
+  printf("Status : walk");
+  led2 = 0; //blue
+  led3 = 1; //yellow
+}
+
+void nonmoving() {
+  printf("Status : idle");
+  led2 = 1; //blue
+  led3 = 0; //yellow
+}
+
+void pressed_handler() {
+    if (status == 1){
+      nonmoving();
+      status = 0;
+    }
+    else if (status == 0){
+      moving();
+      status = 1;
+    }
+
 }
 

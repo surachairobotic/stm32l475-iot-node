@@ -2,11 +2,11 @@
     "config": {
         "wifi-ssid": {
             "help": "WiFi SSID",
-            "value": "\"SI iphone\""
+            "value": "\"Jack\""
         },
         "wifi-password": {
             "help": "WiFi Password",
-            "value": "\"inninn2540\""
+            "value": "\"nopassword\""
         }
     },
     "target_overrides": {
