@@ -20,7 +20,7 @@ struct Names {
   enum type { toa, bank, inn, o, por, menghorng, michael, wari, aoff, test};
 };
 
-int8_t name = Names::test;
+int8_t name = Names::bank;
 
 void pressed_handler();
 // void moving();
@@ -158,7 +158,6 @@ int main() {
     float kalman_gain[6] =  {0,0,0,0,0,0};
     float est_current[6] = {500,500,500,500,500,500};
     float temp_val[6] = {0};
-    int count_time = 0;
 
     while(1) {
         button.fall(queue.event(pressed_handler));
@@ -182,14 +181,27 @@ int main() {
         est_current[j]=update_est_current(kalman_gain[j],temp_val[j],est_current[j]);
         var[j]=update_var(kalman_gain[j],var[j]);
         }
+            printf( "%d,%d,%d,%d,%d,%d,%d\r\n", (int)temp_val[0], (int)temp_val[1], (int)temp_val[2], (int)temp_val[3], (int)temp_val[4], (int)temp_val[5],status); 
+            sprintf(buf, "%d,%d,%d,%d,%d,%d,%d\r\n", (int)temp_val[0], (int)temp_val[1], (int)temp_val[2], (int)temp_val[3], (int)temp_val[4], (int)temp_val[5], status);
 
-        if(count_time>50) 
-        {
-        //   printf( "Mea=%f,%f,%f,%f,%f,%f\r\n", temp_val[0], temp_val[1], temp_val[2], temp_val[3], temp_val[4], temp_val[5]); 
-        //   printf( "Pre=%f,%f,%f,%f,%f,%f\r\n", est_current[0], est_current[1], est_current[2], est_current[3], est_current[4], est_current[5]); 
-            printf( "%f,%f,%f,%f,%f,%f,%d\r\n", temp_val[0], temp_val[1], temp_val[2], temp_val[3], temp_val[4], temp_val[5],status); 
-            sprintf(buf, "%f,%f,%f,%f,%f,%f,%d\r\n", temp_val[0], temp_val[1], temp_val[2], temp_val[3], temp_val[4], temp_val[5], status);
-            for(int m=0;m<6;m++)
+
+
+        
+     
+        // printf("%lu,%lu,%lu,%d,%d,%d,%d\r\n", rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
+        
+        // sprintf(buf, "%lu,%d,%lu,%lu,%lu,%d,%d,%d,%d\r\n", seq, device_id, rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
+        // sprintf(buf, "%lu,%lu,%lu,%d,%d,%d,%d\r\n", rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
+        message.payload = (void*)buf;
+        message.payloadlen = strlen(buf)+1;
+        if( t.read()-previous_t > 0.25 ) {
+          ret = mqttClient->publish(MQTT_TOPIC[name].c_str(), message);
+          if (ret != 0)
+              printf("rc from publish was %d\r\n", ret);
+          seq=seq+1;
+          led2=1;
+          previous_t = t.read();
+          for(int m=0;m<6;m++)
             {
                 est[m] =         500;
                 var[m] =         255;
@@ -197,23 +209,6 @@ int main() {
                 kalman_gain[m] =  0;
                 est_current[m] = 500;
             }
-            count_time=0;
-
-        }
-      count_time++;        
-        // printf("%lu,%lu,%lu,%d,%d,%d,%d\r\n", rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
-        
-        // sprintf(buf, "%lu,%d,%lu,%lu,%lu,%d,%d,%d,%d\r\n", seq, device_id, rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
-        // sprintf(buf, "%lu,%lu,%lu,%d,%d,%d,%d\r\n", rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
-        message.payload = (void*)buf;
-        message.payloadlen = strlen(buf)+1;
-        if( t.read()-previous_t > 0.5 ) {
-          ret = mqttClient->publish(MQTT_TOPIC[name].c_str(), message);
-          if (ret != 0)
-              printf("rc from publish was %d\r\n", ret);
-          seq=seq+1;
-          led2=1;
-          previous_t = t.read();
         }
         else if( t.read()-previous_t > 0.025 )
           led2=0;
