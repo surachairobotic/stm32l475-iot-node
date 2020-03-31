@@ -10,6 +10,6 @@ Read sensor value to estimate value
 we will flip the board and read data from yaw axis  
 
 ## Expected results:  
-Landscape 	~1000  
+Horizontal 	~1000  
 Flip left 	0 	to 	100  
 Flip right	0	to 	100  
