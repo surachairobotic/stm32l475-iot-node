@@ -25,6 +25,22 @@ int8_t name = Names::test;
 void pressed_handler();
 // void moving();
 // void nonmoving();
+float update_kalman_gain(float var,float deviation)
+{
+  float kalman_gain=var/(var+deviation);
+    return kalman_gain;
+}
+float update_est_current(float kalman_gain,float measure,float est_last)
+{
+  float est_current=est_last+kalman_gain*(measure-est_last);
+  return est_current;
+}
+
+float update_var(float kalman_gain , float var)
+{
+  var=(1-kalman_gain)*var;
+  return var;
+}
 
 
 int main() {
@@ -134,18 +150,61 @@ int main() {
     // button.fall(queue.event(pressed_handler));
     t.reset();
     previous_t=t.read();
+        
+    //kalmannnnnnnnnnnnnnnnnnnnnnnnnnnn
+    float est[6] =         {500,500,500,500,500,500};
+    float var[6] =         {255,255,255,255,255,255};
+    float deviation[6] =    {25,25,25,25,25,125};
+    float kalman_gain[6] =  {0,0,0,0,0,0};
+    float est_current[6] = {500,500,500,500,500,500};
+    float temp_val[6] = {0};
+    int count_time = 0;
 
     while(1) {
         button.fall(queue.event(pressed_handler));
+
+
         BSP_GYRO_GetXYZ(pGyroDataXYZ);
         for(int i=0; i<3; i++) 
           rpy[i] = pGyroDataXYZ[i];
         BSP_ACCELERO_AccGetXYZ(pDataXYZ);
-        
-        printf("%lu,%lu,%lu,%d,%d,%d,%d\r\n", rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
+
+        temp_val[0]=rpy[0];
+        temp_val[1]=rpy[1];
+        temp_val[2]=rpy[2];
+        temp_val[3]=pDataXYZ[0];
+        temp_val[4]=pDataXYZ[1];
+        temp_val[5]=pDataXYZ[2];
+
+        for(int j=0;j<6;j++)
+        {
+        kalman_gain[j]=update_kalman_gain(var[j],deviation[j]);
+        est_current[j]=update_est_current(kalman_gain[j],temp_val[j],est_current[j]);
+        var[j]=update_var(kalman_gain[j],var[j]);
+        }
+
+        if(count_time>50) 
+        {
+        //   printf( "Mea=%f,%f,%f,%f,%f,%f\r\n", temp_val[0], temp_val[1], temp_val[2], temp_val[3], temp_val[4], temp_val[5]); 
+        //   printf( "Pre=%f,%f,%f,%f,%f,%f\r\n", est_current[0], est_current[1], est_current[2], est_current[3], est_current[4], est_current[5]); 
+            printf( "%f,%f,%f,%f,%f,%f,%d\r\n", temp_val[0], temp_val[1], temp_val[2], temp_val[3], temp_val[4], temp_val[5],status); 
+            sprintf(buf, "%f,%f,%f,%f,%f,%f,%d\r\n", temp_val[0], temp_val[1], temp_val[2], temp_val[3], temp_val[4], temp_val[5], status);
+            for(int m=0;m<6;m++)
+            {
+                est[m] =         500;
+                var[m] =         255;
+                deviation[m] =    25;
+                kalman_gain[m] =  0;
+                est_current[m] = 500;
+            }
+            count_time=0;
+
+        }
+      count_time++;        
+        // printf("%lu,%lu,%lu,%d,%d,%d,%d\r\n", rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
         
         // sprintf(buf, "%lu,%d,%lu,%lu,%lu,%d,%d,%d,%d\r\n", seq, device_id, rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
-        sprintf(buf, "%lu,%lu,%lu,%d,%d,%d,%d\r\n", rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
+        // sprintf(buf, "%lu,%lu,%lu,%d,%d,%d,%d\r\n", rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
         message.payload = (void*)buf;
         message.payloadlen = strlen(buf)+1;
         if( t.read()-previous_t > 0.5 ) {
