@@ -28,11 +28,13 @@ status : walk
 <led_yellow>  
 
 <toggle>  
+
 ```
 status : idle  
 1,0,1,<value>,...  
 ```
 //device_id, status, seq, pGyroDataXYZ[0], ...  
+
 <led_blue>  
 
 # Test case : speed of MQTT protocol.
