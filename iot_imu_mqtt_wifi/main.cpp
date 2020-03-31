@@ -6,7 +6,9 @@
 #include "stm32l475e_iot01_gyro.h"
 #include "stm32l475e_iot01_accelero.h"
 
-DigitalOut led2(LED4); //blue
+DigitalOut led(LED1);
+DigitalOut led2(LED2);
+DigitalOut led4(LED4); //blue
 DigitalOut led3(LED3); //yellow
 InterruptIn button(USER_BUTTON);
 EventQueue queue(5 * EVENTS_EVENT_SIZE);
@@ -21,13 +23,13 @@ struct Names {
 int8_t name = Names::test;
 
 void pressed_handler();
-void moving();
-void nonmoving();
+// void moving();
+// void nonmoving();
 
 
 int main() {
 
-    DigitalOut led(LED1), led2(LED2);
+    // DigitalOut led(LED1), led2(LED2);
     WiFiInterface *wifi;
     TCPSocket* socket;
     MQTTClient* mqttClient;
@@ -107,6 +109,8 @@ int main() {
     // Start Read sensor
     int16_t pDataXYZ[3] = {0};
     float pGyroDataXYZ[3] = {0};
+
+    t.start(callback(&queue, &EventQueue::dispatch_forever));
 	
     printf("Sensor init : start\n");
     BSP_GYRO_Init();
@@ -127,16 +131,21 @@ int main() {
     t.start();
     float previous_t=0.0;
     int32_t rpy[3] = {0};
-    button.fall(queue.event(pressed_handler));
+    // button.fall(queue.event(pressed_handler));
     t.reset();
     previous_t=t.read();
+
     while(1) {
+        button.fall(queue.event(pressed_handler));
         BSP_GYRO_GetXYZ(pGyroDataXYZ);
-        for(int i=0; i<3; i++)
+        for(int i=0; i<3; i++) 
           rpy[i] = pGyroDataXYZ[i];
         BSP_ACCELERO_AccGetXYZ(pDataXYZ);
         
-        sprintf(buf, "%lu,%d,%lu,%lu,%lu,%d,%d,%d,%d\r\n", seq, device_id, rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
+        printf("%lu,%lu,%lu,%d,%d,%d,%d\r\n", rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
+        
+        // sprintf(buf, "%lu,%d,%lu,%lu,%lu,%d,%d,%d,%d\r\n", seq, device_id, rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
+        sprintf(buf, "%lu,%lu,%lu,%d,%d,%d,%d\r\n", rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
         message.payload = (void*)buf;
         message.payloadlen = strlen(buf)+1;
         if( t.read()-previous_t > 0.5 ) {
@@ -149,32 +158,50 @@ int main() {
         }
         else if( t.read()-previous_t > 0.025 )
           led2=0;
+
+
         led = !led;
     }
     t.stop();
+    // printf("stop\r\n");
 }
 
-void moving() {
-  printf("Status : walk");
-  led2 = 0; //blue
-  led3 = 1; //yellow
-}
+// void moving() {
+//   printf("Status : walk");
+//   led2 = 0; //blue
+//   led3 = 1; //yellow
+// }
 
-void nonmoving() {
-  printf("Status : idle");
-  led2 = 1; //blue
-  led3 = 0; //yellow
-}
+// void nonmoving() {
+//   printf("Status : idle");
+//   led2 = 1; //blue
+//   led3 = 0; //yellow
+// }
+
+// void pressed_handler() {
+//     if (status == 1){
+//       nonmoving();
+//       status = 0;
+//     }
+//     else if (status == 0){
+//       moving();
+//       status = 1;
+//     }
+
+// }
 
 void pressed_handler() {
     if (status == 1){
-      nonmoving();
-      status = 0;
+        printf("Status : idle");
+        status = 0;
+        led4 = 1; //blue
+        led3 = 0; //yellow
     }
     else if (status == 0){
-      moving();
-      status = 1;
+        printf("Status : walk");
+        status = 1;
+        led4 = 0; //blue
+        led3 = 1; //yellow
     }
 
 }
-
