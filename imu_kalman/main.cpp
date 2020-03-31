@@ -47,14 +47,6 @@ float update_var(float kalman_gain , float var)
 }
 int main() {
 
-    //kalman path//
-
-
-
-
-
-
-
     DigitalOut led(LED1), led2(LED2);
     int8_t device_id = name;
     unsigned long seq = 1;
@@ -118,17 +110,6 @@ int main() {
         // kalman_gain=var/(var+deviation);
         // est_output=est_last+kalman_gain*(measure-est_last)
         // var=(1-kalman_gain)*var
-
-        
-
-
-
-
-
-
-
-
-
 
         // printf( "GYRO=%d,%d,%d\r\n", gyro[0], gyro[1], gyro[2]); 
         // printf( "ACC=%d,%d,%d\r\n",  pDataXYZ[0], pDataXYZ[1], pDataXYZ[2]); // roll pitch yaw
