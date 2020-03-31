@@ -30,3 +30,21 @@ status : idle
 //device_id, status, seq, pGyroDataXYZ[0], ...
 1,0,1,<value>,...
 <led_blue>
+
+# Test case : speed of MQTT protocol.
+## Description
+Test to find max speed and accuracy of systems
+## Procedure
+Use the iot node to send data to NETPIE and subscribe with python and observe the data loss and speed by varying the amount of data sent between 1-1024 characters.
+## Test Data :
+'''
+S100,D512,F10
+1DDDDD … DDD <--  num of charactor for each line is 512
+2DDDDD … DDD
+3DDDDD … DDD
+.
+100DDDDD … DDD
+'''
+## Expected results
+When the python side receives the header information, it will immediately know what the data will be sent with the pattern, making it possible to check the accuracy of the data.
+
