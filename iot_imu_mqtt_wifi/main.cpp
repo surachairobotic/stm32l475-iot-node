@@ -6,6 +6,8 @@
 #include "stm32l475e_iot01_gyro.h"
 #include "stm32l475e_iot01_accelero.h"
 
+#define MODE 1 // 0 : socket_wifi, 1 : MQTT
+
 DigitalOut led(LED1);
 DigitalOut led2(LED2);
 DigitalOut led4(LED4); //blue
@@ -20,11 +22,9 @@ struct Names {
   enum type { toa, bank, inn, o, por, menghorng, michael, wari, aoff, test};
 };
 
-int8_t name = Names::bank;
+int8_t name = Names::toa;
 
 void pressed_handler();
-// void moving();
-// void nonmoving();
 float update_kalman_gain(float var,float deviation)
 {
   float kalman_gain=var/(var+deviation);
@@ -72,16 +72,16 @@ int main() {
                                               "CXhbMLgUwHFZWKdt77AHEVAgio42f3k7",
                                               "BJpbTPMwu8JFtrtogueNuhc2iDuKmN5U" };
 
-    std::vector<std::string> MQTT_TOPIC = { "@msg/sensor_data/toa",
-                                            "@msg/sensor_data/bank",
-                                            "@msg/sensor_data/inn",
-                                            "@msg/sensor_data/o",
-                                            "@msg/sensor_data/por",
-                                            "@msg/sensor_data/menghorng",
-                                            "@msg/sensor_data/michael",
-                                            "@msg/sensor_data/wari",
-                                            "@msg/sensor_data/aoff",
-                                            "@msg/sensor_data/toa" };
+    std::vector<std::string> MQTT_TOPIC = { "@msg/sensor_data/1",
+                                            "@msg/sensor_data/2",
+                                            "@msg/sensor_data/3",
+                                            "@msg/sensor_data/4",
+                                            "@msg/sensor_data/5",
+                                            "@msg/sensor_data/6",
+                                            "@msg/sensor_data/7",
+                                            "@msg/sensor_data/8",
+                                            "@msg/sensor_data/9",
+                                            "@msg/sensor_data/1" };
 
     int8_t device_id = name;
     unsigned long seq = 1;
@@ -98,29 +98,56 @@ int main() {
         return -1;
     }
 
+
     // Socket connection
     socket = new TCPSocket();
     socket->open(wifi);
     SocketAddress addr;
-    wifi->gethostbyname("mqtt.netpie.io", &addr);
-    addr.set_port(1883);
+    if( MODE ) {
+      wifi->gethostbyname("mqtt.netpie.io", &addr);
+      addr.set_port(1883);
+    }
+    else {
+      wifi->gethostbyname("192.168.43.66", &addr);
+      addr.set_port(1111);
+    }
     socket->connect(addr);
     if (ret != 0) {
         printf("rc from TCP connect is %d\r\n", ret);
         return -1;
     }
 
-    // MQTT connection
-    mqttClient = new MQTTClient(socket); 
+/*
+    SocketAddress addr;
+    if( MODE ) {
+      wifi->gethostbyname("mqtt.netpie.io", &addr);
+      addr.set_port(1883);
+    }
+    else {
+      wifi->gethostbyname("192.168.43.66", &addr);
+      addr.set_port(1111);
+    }
+*/
+
     MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
     data.clientID.cstring = (char*)CLIENT_ID[name].c_str();
     data.username.cstring = (char*)NETPIE_TOKEN[name].c_str();
-    //data.password.cstring = (char*)NETPIE_SECRET;
-    ret = mqttClient->connect(data);
-    if (ret != 0) {
-        printf("rc from MQTT connect is %d\r\n", ret);
-        return -1;
+
+
+    if( MODE ) {
+      // MQTT connection
+      mqttClient = new MQTTClient(socket); 
+      //MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
+      //data.clientID.cstring = (char*)CLIENT_ID[name].c_str();
+      //data.username.cstring = (char*)NETPIE_TOKEN[name].c_str();
+      //data.password.cstring = (char*)NETPIE_SECRET;
+      ret = mqttClient->connect(data);
+      if (ret != 0) {
+          printf("rc from MQTT connect is %d\r\n", ret);
+          return -1;
+      }
     }
+
  
     // Start Read sensor
     int16_t pDataXYZ[3] = {0};
@@ -135,19 +162,20 @@ int main() {
     BSP_ACCELERO_LowPower(0);
     printf("Sensor init : complete\n");
     
-    printf("MQTT init : start\n");
-    MQTT::Message message;
     char buf[100];
-    message.qos = MQTT::QOS2;
-    message.retained = false;
-    message.dup = false;
-    printf("MQTT init : complete\n");
+    MQTT::Message message;
+    if( MODE ) {
+      printf("MQTT init : start\n");
+      message.qos = MQTT::QOS0;
+      message.retained = false;
+      message.dup = false;
+      printf("MQTT init : complete\n");
+    }
 
     Timer t;
     t.start();
     float previous_t=0.0;
     int32_t rpy[3] = {0};
-    // button.fall(queue.event(pressed_handler));
     t.reset();
     previous_t=t.read();
         
@@ -158,10 +186,12 @@ int main() {
     float kalman_gain[6] =  {0,0,0,0,0,0};
     float est_current[6] = {500,500,500,500,500,500};
     float temp_val[6] = {0};
+    
+    bool b_connect = false;
+    float freq = 0.25;
 
     while(1) {
         button.fall(queue.event(pressed_handler));
-
 
         BSP_GYRO_GetXYZ(pGyroDataXYZ);
         for(int i=0; i<3; i++) 
@@ -177,72 +207,91 @@ int main() {
 
         for(int j=0;j<6;j++)
         {
-        kalman_gain[j]=update_kalman_gain(var[j],deviation[j]);
-        est_current[j]=update_est_current(kalman_gain[j],temp_val[j],est_current[j]);
-        var[j]=update_var(kalman_gain[j],var[j]);
+          kalman_gain[j]=update_kalman_gain(var[j],deviation[j]);
+          est_current[j]=update_est_current(kalman_gain[j],temp_val[j],est_current[j]);
+          var[j]=update_var(kalman_gain[j],var[j]);
         }
-            printf( "%d,%d,%d,%d,%d,%d,%d\r\n", (int)temp_val[0], (int)temp_val[1], (int)temp_val[2], (int)temp_val[3], (int)temp_val[4], (int)temp_val[5],status); 
-            sprintf(buf, "%d,%d,%d,%d,%d,%d,%d\r\n", (int)temp_val[0], (int)temp_val[1], (int)temp_val[2], (int)temp_val[3], (int)temp_val[4], (int)temp_val[5], status);
-
-
-
-        
-     
+/*
+        printf("%d,%d,%d,%d,%d,%d,%d\r\n", (int)temp_val[0], (int)temp_val[1], (int)temp_val[2], (int)temp_val[3], (int)temp_val[4], (int)temp_val[5], status); 
+        sprintf(buf, "%d,%d,%d,%d,%d,%d,%d", (int)temp_val[0], (int)temp_val[1], (int)temp_val[2], (int)temp_val[3], (int)temp_val[4], (int)temp_val[5], status);
+*/   
         // printf("%lu,%lu,%lu,%d,%d,%d,%d\r\n", rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
         
         // sprintf(buf, "%lu,%d,%lu,%lu,%lu,%d,%d,%d,%d\r\n", seq, device_id, rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
         // sprintf(buf, "%lu,%lu,%lu,%d,%d,%d,%d\r\n", rpy[0], rpy[1], rpy[2], pDataXYZ[0], pDataXYZ[1], pDataXYZ[2], status);
-        message.payload = (void*)buf;
-        message.payloadlen = strlen(buf)+1;
-        if( t.read()-previous_t > 0.25 ) {
+        if( t.read()-previous_t > freq && MODE ) {
+          //printf("%d,%d,%d,%d,%d,%d,%d,%d\r\n", device_id, (int)temp_val[0], (int)temp_val[1], (int)temp_val[2], (int)temp_val[3], (int)temp_val[4], (int)temp_val[5], status); 
+          sprintf(buf, "%d,%d,%d,%d,%d,%d,%d", (int)temp_val[0], (int)temp_val[1], (int)temp_val[2], (int)temp_val[3], (int)temp_val[4], (int)temp_val[5], status);
+
+          message.payload = (void*)buf;
+          message.payloadlen = strlen(buf)+1;
+
+/*
+          // Socket connection
+          socket = new TCPSocket();
+          socket->open(wifi);
+          socket->connect(addr);
+          if (ret != 0) {
+              printf("rc from TCP connect is %d\r\n", ret);
+              previous_t = t.read();
+              continue;
+          }
+
+
+          data.clientID.cstring = (char*)CLIENT_ID[name].c_str();
+          data.username.cstring = (char*)NETPIE_TOKEN[name].c_str();
+          mqttClient = new MQTTClient(socket); 
+          //MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
+          //data.clientID.cstring = (char*)CLIENT_ID[name].c_str();
+          //data.username.cstring = (char*)NETPIE_TOKEN[name].c_str();
+          //data.password.cstring = (char*)NETPIE_SECRET;
+          ret = mqttClient->connect(data);
+          if (ret != 0) {
+              printf("rc from MQTT connect is %d\r\n", ret);
+              previous_t = t.read();
+              continue;
+          }
+*/
+          
           ret = mqttClient->publish(MQTT_TOPIC[name].c_str(), message);
           if (ret != 0)
               printf("rc from publish was %d\r\n", ret);
-          seq=seq+1;
-          led2=1;
           previous_t = t.read();
+
+/*
+          mqttClient->disconnect();
+          free(mqttClient);
+          
+          socket->close();
+          free(socket);
+*/
+
+          //device_id = (device_id + 1) % 9;
+
+          //seq=seq+1;
+          led2=1;
           for(int m=0;m<6;m++)
-            {
-                est[m] =         500;
-                var[m] =         255;
-                deviation[m] =    25;
-                kalman_gain[m] =  0;
-                est_current[m] = 500;
-            }
+          {
+            est[m] =         500;
+            var[m] =         255;
+            deviation[m] =    25;
+            kalman_gain[m] =  0;
+            est_current[m] = 500;
+          }
         }
-        else if( t.read()-previous_t > 0.025 )
+        else if( t.read()-previous_t > freq/2.0 ) {
           led2=0;
-
-
+          /*
+          if( b_connect )
+            mqttClient->disconnect();
+            b_connect = false;
+          */
+        }
         led = !led;
     }
     t.stop();
-    // printf("stop\r\n");
+    printf("stop\r\n");
 }
-
-// void moving() {
-//   printf("Status : walk");
-//   led2 = 0; //blue
-//   led3 = 1; //yellow
-// }
-
-// void nonmoving() {
-//   printf("Status : idle");
-//   led2 = 1; //blue
-//   led3 = 0; //yellow
-// }
-
-// void pressed_handler() {
-//     if (status == 1){
-//       nonmoving();
-//       status = 0;
-//     }
-//     else if (status == 0){
-//       moving();
-//       status = 1;
-//     }
-
-// }
 
 void pressed_handler() {
     if (status == 1){
