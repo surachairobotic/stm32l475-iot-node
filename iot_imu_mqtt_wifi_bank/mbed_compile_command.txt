@@ -1,0 +1,1 @@
+mbed compile -m DISCO_L475VG_IOT01A -t GCC_ARM --source stm32l475-iot-node/iot_imu_mqtt_wifi/ --source mbed-os --source wifi-ism43362 --source mbed-mqtt --build BUILD/iot_imu_mqtt_wifi
