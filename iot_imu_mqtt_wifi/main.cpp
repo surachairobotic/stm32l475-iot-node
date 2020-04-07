@@ -23,12 +23,6 @@ Thread t_sensor;
 IMU* imu;
 int status = 1;
 
-//kalmannnnnnnnnnnnnnnnnnnnnnnnnnnn
-float est[6] = {500, 500, 500, 500, 500, 500};
-float var[6] = {255, 255, 255, 255, 255, 255};
-float deviation[6] = {25, 25, 25, 25, 25, 125};
-float kalman_gain[6] = {0, 0, 0, 0, 0, 0};
-float est_current[6] = {500, 500, 500, 500, 500, 500};
 float data_val[12] = {0};
 
 struct Names
