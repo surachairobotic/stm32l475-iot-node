@@ -9,6 +9,7 @@
 #include "imu.h"
 
 #define MODE 1 // 0 : socket_wifi, 1 : MQTT
+//#define TRANING_MODE
 
 DigitalOut led(LED1);
 DigitalOut led2(LED2);
@@ -100,6 +101,7 @@ int main()
                                            "CXhbMLgUwHFZWKdt77AHEVAgio42f3k7",
                                            "BJpbTPMwu8JFtrtogueNuhc2iDuKmN5U"};
 
+#ifdef TRANING_MODE
   std::vector<std::string> MQTT_TOPIC = {"@msg/sensor_data/1",
                                          "@msg/sensor_data/2",
                                          "@msg/sensor_data/3",
@@ -110,6 +112,18 @@ int main()
                                          "@msg/sensor_data/8",
                                          "@msg/sensor_data/9",
                                          "@msg/sensor_data/1"};
+#else
+  std::vector<std::string> MQTT_TOPIC = {"@msg/predict_data/1",
+                                         "@msg/predict_data/2",
+                                         "@msg/predict_data/3",
+                                         "@msg/predict_data/4",
+                                         "@msg/predict_data/5",
+                                         "@msg/predict_data/6",
+                                         "@msg/predict_data/7",
+                                         "@msg/predict_data/8",
+                                         "@msg/predict_data/9",
+                                         "@msg/predict_data/1"};
+#endif
 
   int8_t device_id = name;
   unsigned long seq = 1;
@@ -149,29 +163,13 @@ int main()
     return -1;
   }
 
-  /*
-    SocketAddress addr;
-    if( MODE ) {
-      wifi->gethostbyname("mqtt.netpie.io", &addr);
-      addr.set_port(1883);
-    }
-    else {
-      wifi->gethostbyname("192.168.43.66", &addr);
-      addr.set_port(1111);
-    }
-*/
-
-  MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
-  data.clientID.cstring = (char *)CLIENT_ID[name].c_str();
-  data.username.cstring = (char *)NETPIE_TOKEN[name].c_str();
-
   if (MODE)
   {
     // MQTT connection
     mqttClient = new MQTTClient(socket);
-    //MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
-    //data.clientID.cstring = (char*)CLIENT_ID[name].c_str();
-    //data.username.cstring = (char*)NETPIE_TOKEN[name].c_str();
+    MQTTPacket_connectData data = MQTTPacket_connectData_initializer;
+    data.clientID.cstring = (char*)CLIENT_ID[name].c_str();
+    data.username.cstring = (char*)NETPIE_TOKEN[name].c_str();
     //data.password.cstring = (char*)NETPIE_SECRET;
     ret = mqttClient->connect(data);
     if (ret != 0)
@@ -186,7 +184,6 @@ int main()
   printf("Sensor init : complete\n");
 
   t.start(callback(&queue, &EventQueue::dispatch_forever));
-  // button_mode.start(button.fall(queue.event(pressed_handler)));
   t_button.start(&thread_button);
   t_sensor.start(&thread_sensor);
 
@@ -212,12 +209,25 @@ int main()
 
   while(1) {
     printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\r\n", data_val[0], data_val[1], data_val[2], data_val[3], data_val[4], data_val[5], data_val[6], data_val[7], data_val[8], data_val[9], data_val[10], data_val[11]);
-    if (t.read() - previous_t > freq && MODE)
-    {
+
+    if (t.read() - previous_t > freq && MODE) {
+#ifdef TRANING_MODE
+      sprintf(buf, "%d,%d,%d,%d,%d,%d,%d", (int)data_val[0], (int)data_val[1], (int)data_val[2], (int)data_val[3], (int)data_val[4], (int)data_val[5], status);
+#else
+      sprintf(buf, "%d,%d,%d,%d,%d,%d", (int)data_val[0], (int)data_val[1], (int)data_val[2], (int)data_val[3], (int)data_val[4], (int)data_val[5]);
+#endif
+
+      message.payload = (void *)buf;
+      message.payloadlen = strlen(buf) + 1;
+
+      ret = mqttClient->publish(MQTT_TOPIC[name].c_str(), message);
+      if (ret != 0)
+        printf("rc from publish was %d\r\n", ret);
+      previous_t = t.read();
+
       imu->rebase_kalman();
     }
-    else if (t.read() - previous_t > freq / 2.0)
-    {
+    else if (t.read() - previous_t > freq / 2.0) {
       led2 = 0;
     }
     led = !led;
