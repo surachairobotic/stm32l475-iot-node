@@ -11,6 +11,8 @@
 #define MODE 1 // 0 : socket_wifi, 1 : MQTT
 //#define TRANING_MODE
 
+DigitalOut led6(D6);
+DigitalOut led7(D7);
 DigitalOut led(LED1);
 DigitalOut led2(LED2);
 DigitalOut led4(LED4); //blue
@@ -23,6 +25,12 @@ Thread t_sensor;
 IMU* imu;
 int status = 1;
 
+//kalmannnnnnnnnnnnnnnnnnnnnnnnnnnn
+float est[6] = {500, 500, 500, 500, 500, 500};
+float var[6] = {255, 255, 255, 255, 255, 255};
+float deviation[6] = {25, 25, 25, 25, 25, 125};
+float kalman_gain[6] = {0, 0, 0, 0, 0, 0};
+float est_current[6] = {500, 500, 500, 500, 500, 500};
 float data_val[12] = {0};
 
 struct Names
@@ -202,9 +210,9 @@ int main()
   float freq = 0.25;
 
   while(1) {
-    printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\r\n", data_val[0], data_val[1], data_val[2], data_val[3], data_val[4], data_val[5], data_val[6], data_val[7], data_val[8], data_val[9], data_val[10], data_val[11]);
-
-    if (t.read() - previous_t > freq && MODE) {
+    if (t.read() - previous_t >= freq && MODE) {
+      previous_t = t.read();
+      led6 = 1; // start
 #ifdef TRANING_MODE
       sprintf(buf, "%d,%d,%d,%d,%d,%d,%d", (int)data_val[0], (int)data_val[1], (int)data_val[2], (int)data_val[3], (int)data_val[4], (int)data_val[5], status);
 #else
@@ -217,12 +225,16 @@ int main()
       ret = mqttClient->publish(MQTT_TOPIC[name].c_str(), message);
       if (ret != 0)
         printf("rc from publish was %d\r\n", ret);
-      previous_t = t.read();
+      printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\r\n", data_val[0], data_val[1], data_val[2], data_val[3], data_val[4], data_val[5], data_val[6], data_val[7], data_val[8], data_val[9], data_val[10], data_val[11]);
+      led2 = 1;
 
       imu->rebase_kalman();
+      led7 = 1; // finish
     }
     else if (t.read() - previous_t > freq / 2.0) {
       led2 = 0;
+      led6 = 0;
+      led7 = 0;
     }
     led = !led;
   }
