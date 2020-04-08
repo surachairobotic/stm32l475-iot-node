@@ -124,7 +124,9 @@ void send_mqtt() {
   led7 = 1; // start
   mqttClient->publish(MQTT_TOPIC[name].c_str(), 
                       my_message(data_val));
-  imu->rebase_kalman();
+                      
+
+  imu->rebase_kalman(data_val);
   led7 = 0; // finish
 }
 

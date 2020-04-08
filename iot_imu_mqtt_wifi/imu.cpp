@@ -10,8 +10,6 @@ IMU::IMU() {
     pDataXYZ[i] = 0;
     pGyroDataXYZ[i] = 0.0;
   }
-
-  rebase_kalman();
             
   BSP_GYRO_Init();
   BSP_GYRO_LowPower(0);
@@ -68,11 +66,11 @@ float IMU::update_var(float kalman_gain, float var) {
   return (1 - kalman_gain) * var;
 }
 
-void IMU::rebase_kalman() {
+void IMU::rebase_kalman(float* data) {
   for(int i=0; i<6; i++) {
     var[i] = 255;
     deviation[i] = 25;
     kalman_gain[i] = 0;
-    est_current[i] = 500;
+    est_current[i] = data[i];
   }
 }

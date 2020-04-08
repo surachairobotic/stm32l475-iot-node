@@ -12,7 +12,7 @@ class IMU{
     IMU();
     void get_sensor(float* data);
     void get_sensor_kalman(float* data);
-    void rebase_kalman();
+    void rebase_kalman(float* data);
     
   private:
     float update_kalman_gain(float var, float deviation);
