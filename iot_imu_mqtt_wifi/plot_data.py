@@ -162,7 +162,7 @@ class serialPlot:
             while self.isReceiving != True:
                 time.sleep(0.1)
  
-    def getSerialData(self, frame, lines1, lines2, lineValueText, lineLabel, timeText, pltNumber):
+    def getSerialData(self, frame, lines1, lines2, lineLabel, timeText, pltNumber):
         if pltNumber == 0:  # in order to make all the clocks show the same reading
             currentTimer = time.perf_counter()
             self.plotTimer = int((currentTimer - self.previousTimer) * 1000)     # the first reading will be erroneous
@@ -171,14 +171,14 @@ class serialPlot:
         timeText.set_text('Plot Interval = ' + str(self.plotTimer) + 'ms')
         #data = self.privateData[(pltNumber*self.dataNumBytes):(self.dataNumBytes + pltNumber*self.dataNumBytes)]
         data = str(self.privateData[:len(self.privateData)-2].decode("utf-8")).split(',')
-        print(data)
+        #print(data)
         #value,  = struct.unpack(self.dataType, data)
         value = [float(x) for x in data]
         self.data[pltNumber].append(value[pltNumber])    # we get the latest data point and append it to our array
         self.data[pltNumber+6].append(value[pltNumber+6])    # we get the latest data point and append it to our array
         lines1.set_data(range(self.plotMaxLength), self.data[pltNumber])
         lines2.set_data(range(self.plotMaxLength), self.data[pltNumber+6])
-        lineValueText.set_text('[' + lineLabel + '] = ' + str(value))
+        #lineValueText.set_text('[' + lineLabel + '] = ' + str(value))
 
     def backgroundThread(self):    # retrieve data
         time.sleep(1.0)  # give some buffer time for retrieving data
@@ -196,14 +196,26 @@ class serialPlot:
  
  
 def makeFigure(xLimit, yLimit, title):
-    xmin, xmax = xLimit
-    ymin, ymax = yLimit
-    fig = plt.figure()
-    ax = plt.axes(xlim=(xmin, xmax), ylim=(int(ymin - (ymax - ymin) / 10), int(ymax + (ymax - ymin) / 10)))
-    ax.set_title(title)
-    ax.set_xlabel("Time")
-    ax.set_ylabel("Output")
-    return fig, ax
+  fig, ax = plt.subplots(2, 3)
+  print(type(ax))
+  print(type(ax[0]))
+
+  for i in range(3):
+    xmin, xmax = xLimit[i]
+    ymin, ymax = yLimit[i]
+    ax[0,i].set(xlim=(xmin, xmax), ylim=(int(ymin - (ymax - ymin) / 10), int(ymax + (ymax - ymin) / 10)))
+    ax[0,i].set_title(title[i])
+    ax[0,i].set_xlabel("Time")
+    ax[0,i].set_ylabel("Output")
+
+    xmin, xmax = xLimit[i+3]
+    ymin, ymax = yLimit[i+3]
+    ax[1,i].set(xlim=(xmin, xmax), ylim=(int(ymin - (ymax - ymin) / 10), int(ymax + (ymax - ymin) / 10)))
+    ax[1,i].set_title(title[i+3])
+    ax[1,i].set_xlabel("Time")
+    ax[1,i].set_ylabel("Output")
+
+  return fig, ax
  
  
 def main():
@@ -221,16 +233,22 @@ def main():
     lineLabelText = ['R', 'P', 'Y', 'AX', 'AY', 'AZ']
     title = ['Roll', 'Pitch', 'Yaw', 'X Acceleration', 'Y Acceleration', 'Z Acceleration']
     xLimit = [(0, maxPlotLength), (0, maxPlotLength), (0, maxPlotLength), (0, maxPlotLength), (0, maxPlotLength), (0, maxPlotLength)]
-    yLimit = [(-100000, 100000), (-100000, 100000), (-100000, 100000), (-1000, 1000), (-1000, 1000), (-1000, 1000)]
-    style = ['r-', 'g-', 'b-', 'r-', 'g-', 'b-']    # linestyles for the different plots
+    yLimit = [(-100000, 100000), (-100000, 100000), (-100000, 100000), (-1500, 1500), (-1500, 1000), (-1500, 1500)]
+    style = ['r-', 'g-', 'b-']    # linestyles for the different plots
     anim = []
-    for i in range(numPlots):
-        fig, ax = makeFigure(xLimit[i], yLimit[i], title[i])
-        lines1 = ax.plot([], [], 'r', style[i], label=lineLabelText[i])[0]
-        lines2 = ax.plot([], [], 'g', style[i], label=lineLabelText[i])[0]
-        timeText = ax.text(0.50, 0.95, '', transform=ax.transAxes)
-        lineValueText = ax.text(0.50, 0.90, '', transform=ax.transAxes)
-        anim.append(animation.FuncAnimation(fig, s.getSerialData, fargs=(lines1, lines2, lineValueText, lineLabelText[i], timeText, i), interval=pltInterval))  # fargs has to be a tuple
+    fig, ax = makeFigure(xLimit, yLimit, title)
+    for i in range(3):
+        lines1 = ax[0,i].plot([], [], style[0], label='Actual', linewidth=0.5)[0]
+        lines2 = ax[0,i].plot([], [], style[1], label='Kalman Filters', linewidth=0.5)[0]
+        timeText = ax[0,i].text(0.50, 0.95, '', transform=ax[0,i].transAxes)
+        #lineValueText = ax.text(0.50, 0.90, '', transform=ax.transAxes)
+        anim.append(animation.FuncAnimation(fig, s.getSerialData, fargs=(lines1, lines2, lineLabelText[i], timeText, i), interval=pltInterval))  # fargs has to be a tuple
+        plt.legend(loc="upper left")
+
+        lines1 = ax[1,i].plot([], [], style[0], label='Actual', linewidth=0.5)[0]
+        lines2 = ax[1,i].plot([], [], style[1], label='Kalman Filters', linewidth=0.5)[0]
+        timeText = ax[1,i].text(0.50, 0.95, '', transform=ax[1,i].transAxes)
+        anim.append(animation.FuncAnimation(fig, s.getSerialData, fargs=(lines1, lines2, lineLabelText[i+3], timeText, i+3), interval=pltInterval))  # fargs has to be a tuple
         plt.legend(loc="upper left")
     plt.show()
  

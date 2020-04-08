@@ -3,6 +3,8 @@
 #include "stm32l475e_iot01_gyro.h"
 #include "stm32l475e_iot01_accelero.h"
 
+#include <math.h>
+
 IMU::IMU() {
   for(int i=0; i<3; i++) {
     pDataXYZ[i] = 0;
@@ -18,11 +20,24 @@ IMU::IMU() {
 }
 
 void IMU::get_sensor(float* data) {
-  BSP_GYRO_GetXYZ(pGyroDataXYZ);
-  BSP_ACCELERO_AccGetXYZ(pDataXYZ);
-  for(int i=0; i<3; i++){
-    *(data+i) = *(pGyroDataXYZ+i);
-    *(data+i+3) = *(pDataXYZ+i);
+  while(1) {
+    BSP_GYRO_GetXYZ(pGyroDataXYZ);
+    BSP_ACCELERO_AccGetXYZ(pDataXYZ);
+    bool not_update = true;
+    for(int i=0; i<3; i++) {
+      if( fabs(pGyroDataXYZ[i]-old_pGyroDataXYZ[i]) < 0.01 or 
+          pDataXYZ[i] != old_pDataXYZ[i] )
+        not_update = false;
+    }
+    if( !not_update ) {
+      for(int i=0; i<3; i++) {
+        *(data+i) = *(pGyroDataXYZ+i);
+        *(old_pGyroDataXYZ+i) = *(pGyroDataXYZ+i);
+        *(data+i+3) = *(pDataXYZ+i);
+        *(old_pDataXYZ+i) = *(pDataXYZ+i);
+      }
+      break;
+    }
   }
 }
 

@@ -11,6 +11,52 @@
 #define MODE 1 // 0 : socket_wifi, 1 : MQTT
 //#define TRANING_MODE
 
+std::vector<std::string> CLIENT_ID = {"72ebe8dc-a5db-4e78-9c51-7c94c0f47e2d",
+                                      "4c17795a-e0da-4573-8902-694ec60085a0",
+                                      "028f671c-9d71-4dd9-b936-58b12752f366",
+                                      "9471259d-d918-4fab-a56d-e3fdf5477bcd",
+                                      "d8ade097-71ee-4881-a557-8556b54d2ba1",
+                                      "501e7184-6bfd-4f37-81ab-bca74039b0c9",
+                                      "3847fd5e-1641-4b13-ba8e-4b647b598c13",
+                                      "8958661e-e9e1-4e52-9570-4a9729a3adef",
+                                      "4665fab9-4827-40de-a1a6-36e538463bc4",
+                                      "d3e15b73-a2dc-4940-b7a1-568a235b62e6"};
+
+std::vector<std::string> NETPIE_TOKEN = {"JUn91WGTt7JN9f2pS6mkxXriyJusR2eL",
+                                         "xuXYkC71Ndv7XosKE8DLL5PbHaRAFwLn",
+                                         "TTXbbKgY1PFwdhYCvLbtYyGM3X6wfxDY",
+                                         "Q3CEkL7L1Rua3eKtCSEqUhMk9z4c5v3e",
+                                         "iBukVabEyN6o5kzcrcrX8Fc7caRjcWB3",
+                                         "axksa5eghhCQYp9EADGtr7edpL2Ev3G1",
+                                         "Bh6gKiQ7vr8Cbxp5KVZ3VVGoSL95pXyB",
+                                         "myZjvyCNdfpa41dvTX8fSk9niQeKZbVz",
+                                         "CXhbMLgUwHFZWKdt77AHEVAgio42f3k7",
+                                         "BJpbTPMwu8JFtrtogueNuhc2iDuKmN5U"};
+
+#ifdef TRANING_MODE
+std::vector<std::string> MQTT_TOPIC = {"@msg/sensor_data/1",
+                                       "@msg/sensor_data/2",
+                                       "@msg/sensor_data/3",
+                                       "@msg/sensor_data/4",
+                                       "@msg/sensor_data/5",
+                                       "@msg/sensor_data/6",
+                                       "@msg/sensor_data/7",
+                                       "@msg/sensor_data/8",
+                                       "@msg/sensor_data/9",
+                                       "@msg/sensor_data/1"};
+#else
+std::vector<std::string> MQTT_TOPIC = {"@msg/predict_data/1",
+                                       "@msg/predict_data/2",
+                                       "@msg/predict_data/3",
+                                       "@msg/predict_data/4",
+                                       "@msg/predict_data/5",
+                                       "@msg/predict_data/6",
+                                       "@msg/predict_data/7",
+                                       "@msg/predict_data/8",
+                                       "@msg/predict_data/9",
+                                       "@msg/predict_data/1"};
+#endif
+
 DigitalOut led6(D6);
 DigitalOut led7(D7);
 DigitalOut led(LED1);
@@ -24,6 +70,11 @@ Thread t_button;
 Thread t_sensor;
 IMU* imu;
 int status = 1;
+char buf[100];
+MQTT::Message message;
+WiFiInterface *wifi;
+TCPSocket *socket;
+MQTTClient *mqttClient;
 
 //kalmannnnnnnnnnnnnnnnnnnnnnnnnnnn
 float est[6] = {500, 500, 500, 500, 500, 500};
@@ -55,80 +106,47 @@ int8_t name = Names::toa;
 void pressed_handler();
 void read_sensor();
 
+MQTT::Message& my_message(float *input) {
 
-void thread_button()
-{
-  while (1)
-  {
+  #ifdef TRANING_MODE
+  sprintf(buf, "%d,%d,%d,%d,%d,%d,%d", (int)input[0], (int)input[1], (int)input[2], (int)input[3], (int)input[4], (int)input[5], status);
+  #else
+  sprintf(buf, "%d,%d,%d,%d,%d,%d", (int)input[0], (int)input[1], (int)input[2], (int)input[3], (int)input[4], (int)input[5]);
+  #endif
+
+  message.payload = (void *)buf;
+  message.payloadlen = strlen(buf) + 1;
+  
+  return message;
+}
+
+void send_mqtt() {
+  led7 = 1; // start
+  mqttClient->publish(MQTT_TOPIC[name].c_str(), 
+                      my_message(data_val));
+  imu->rebase_kalman();
+  led7 = 0; // finish
+}
+
+void thread_button() {
+  while(1) {
     button.fall(queue.event(pressed_handler));
     ThisThread::sleep_for(10);
   }
 }
-void thread_sensor()
-{
-  while (1)
-  {
-    read_sensor();
+
+void thread_sensor() {
+  while(1) {
+    imu->get_sensor_kalman(data_val);
+    for(int i=0; i<11; i++) {
+      printf("%.2f,", data_val[i]);
+    }
+    printf("%.2f\r\n", data_val[11]);
     ThisThread::sleep_for(10);
   }
 }
 
-int main()
-{
-
-  // DigitalOut led(LED1), led2(LED2);
-  WiFiInterface *wifi;
-  TCPSocket *socket;
-  MQTTClient *mqttClient;
-
-  std::vector<std::string> CLIENT_ID = {"72ebe8dc-a5db-4e78-9c51-7c94c0f47e2d",
-                                        "4c17795a-e0da-4573-8902-694ec60085a0",
-                                        "028f671c-9d71-4dd9-b936-58b12752f366",
-                                        "9471259d-d918-4fab-a56d-e3fdf5477bcd",
-                                        "d8ade097-71ee-4881-a557-8556b54d2ba1",
-                                        "501e7184-6bfd-4f37-81ab-bca74039b0c9",
-                                        "3847fd5e-1641-4b13-ba8e-4b647b598c13",
-                                        "8958661e-e9e1-4e52-9570-4a9729a3adef",
-                                        "4665fab9-4827-40de-a1a6-36e538463bc4",
-                                        "d3e15b73-a2dc-4940-b7a1-568a235b62e6"};
-
-  std::vector<std::string> NETPIE_TOKEN = {"JUn91WGTt7JN9f2pS6mkxXriyJusR2eL",
-                                           "xuXYkC71Ndv7XosKE8DLL5PbHaRAFwLn",
-                                           "TTXbbKgY1PFwdhYCvLbtYyGM3X6wfxDY",
-                                           "Q3CEkL7L1Rua3eKtCSEqUhMk9z4c5v3e",
-                                           "iBukVabEyN6o5kzcrcrX8Fc7caRjcWB3",
-                                           "axksa5eghhCQYp9EADGtr7edpL2Ev3G1",
-                                           "Bh6gKiQ7vr8Cbxp5KVZ3VVGoSL95pXyB",
-                                           "myZjvyCNdfpa41dvTX8fSk9niQeKZbVz",
-                                           "CXhbMLgUwHFZWKdt77AHEVAgio42f3k7",
-                                           "BJpbTPMwu8JFtrtogueNuhc2iDuKmN5U"};
-
-#ifdef TRANING_MODE
-  std::vector<std::string> MQTT_TOPIC = {"@msg/sensor_data/1",
-                                         "@msg/sensor_data/2",
-                                         "@msg/sensor_data/3",
-                                         "@msg/sensor_data/4",
-                                         "@msg/sensor_data/5",
-                                         "@msg/sensor_data/6",
-                                         "@msg/sensor_data/7",
-                                         "@msg/sensor_data/8",
-                                         "@msg/sensor_data/9",
-                                         "@msg/sensor_data/1"};
-#else
-  std::vector<std::string> MQTT_TOPIC = {"@msg/predict_data/1",
-                                         "@msg/predict_data/2",
-                                         "@msg/predict_data/3",
-                                         "@msg/predict_data/4",
-                                         "@msg/predict_data/5",
-                                         "@msg/predict_data/6",
-                                         "@msg/predict_data/7",
-                                         "@msg/predict_data/8",
-                                         "@msg/predict_data/9",
-                                         "@msg/predict_data/1"};
-#endif
-
-  int8_t device_id = name;
-  unsigned long seq = 1;
+int main() {
 
   // WiFi connection
   wifi = WiFiInterface::get_default_instance();
@@ -185,12 +203,6 @@ int main()
   imu = new IMU();
   printf("Sensor init : complete\n");
 
-  t.start(callback(&queue, &EventQueue::dispatch_forever));
-  t_button.start(&thread_button);
-  t_sensor.start(&thread_sensor);
-
-  char buf[100];
-  MQTT::Message message;
   if (MODE)
   {
     printf("MQTT init : start\n");
@@ -200,45 +212,17 @@ int main()
     printf("MQTT init : complete\n");
   }
 
-  Timer t;
-  t.start();
-  float previous_t = 0.0;
-  t.reset();
-  previous_t = t.read();
+  queue.call_every(250, send_mqtt);
 
-  bool b_connect = false;
-  float freq = 0.25;
+  t.start(callback(&queue, &EventQueue::dispatch_forever));
+  t_button.start(&thread_button);
+  t_sensor.start(&thread_sensor);
 
   while(1) {
-    if (t.read() - previous_t >= freq && MODE) {
-      previous_t = t.read();
-      led6 = 1; // start
-#ifdef TRANING_MODE
-      sprintf(buf, "%d,%d,%d,%d,%d,%d,%d", (int)data_val[0], (int)data_val[1], (int)data_val[2], (int)data_val[3], (int)data_val[4], (int)data_val[5], status);
-#else
-      sprintf(buf, "%d,%d,%d,%d,%d,%d", (int)data_val[0], (int)data_val[1], (int)data_val[2], (int)data_val[3], (int)data_val[4], (int)data_val[5]);
-#endif
-
-      message.payload = (void *)buf;
-      message.payloadlen = strlen(buf) + 1;
-
-      ret = mqttClient->publish(MQTT_TOPIC[name].c_str(), message);
-      if (ret != 0)
-        printf("rc from publish was %d\r\n", ret);
-      printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\r\n", data_val[0], data_val[1], data_val[2], data_val[3], data_val[4], data_val[5], data_val[6], data_val[7], data_val[8], data_val[9], data_val[10], data_val[11]);
-      led2 = 1;
-
-      imu->rebase_kalman();
-      led7 = 1; // finish
-    }
-    else if (t.read() - previous_t > freq / 2.0) {
-      led2 = 0;
-      led6 = 0;
-      led7 = 0;
-    }
     led = !led;
+    ThisThread::sleep_for(500);
   }
-  t.stop();
+
   printf("stop\r\n");
 }
 
